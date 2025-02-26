@@ -8,8 +8,8 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize)]
 pub struct KamutConfig {
     pub name: String,
-    pub kind: String,
-    pub image: String,
+    pub kind: Option<String>,
+    pub image: Option<String>,
     pub env: Option<HashMap<String, String>>,
     pub resources: Option<Resources>,
 

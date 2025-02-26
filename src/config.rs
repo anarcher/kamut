@@ -36,37 +36,92 @@ pub fn process_file(file_path: &Path) -> Result<()> {
     file.read_to_string(&mut contents)
         .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
-    let config: KamutConfig = serde_yaml::from_str(&contents)
-        .with_context(|| format!("Failed to parse YAML from: {}", file_path.display()))?;
+    // Handle multi-document YAML files by splitting on "---" separator
+    let documents: Vec<&str> = contents.split("---").collect();
+    let mut doc_count = 0;
 
-    //println!("Config: {:#?}", config);
+    for doc in documents {
+        // Skip empty documents
+        if doc.trim().is_empty() {
+            continue;
+        }
 
-    // Generate Kubernetes manifest
-    match config.kind.as_str() {
-        "Deployment" => {
-            let manifest = generate_deployment_manifest(&config)?;
+        doc_count += 1;
+        println!("\nProcessing document {} in {}", doc_count, file_path.display());
+
+        // Parse the YAML to KamutConfig
+        let config: KamutConfig = serde_yaml::from_str(doc)
+            .with_context(|| format!("Failed to parse document {} in {}", doc_count, file_path.display()))?;
+
+        // Process configs based on what's present in the file
+        let mut processed = false;
+
+        // Process nested configs if present
+        if let Some(deployment_config) = &config.deployment {
+            println!("Processing nested Deployment config");
+            let manifest = generate_deployment_manifest_from_config(&config.name, deployment_config)?;
             println!("\nKubernetes Deployment Manifest:\n{}", manifest);
+            processed = true;
         }
-        "Prometheus" => {
-            let manifest = generate_prometheus_manifest(&config)?;
+
+        if let Some(prometheus_config) = &config.prometheus {
+            println!("Processing nested Prometheus config");
+            let manifest = generate_prometheus_manifest_from_config(&config.name, prometheus_config)?;
             println!("\nKubernetes Prometheus Manifest:\n{}", manifest);
+            processed = true;
         }
-        _ => {
-            println!("\nUnsupported kind: {}", config.kind);
+
+        // If kind is explicitly specified, use that
+        if !processed && config.kind.is_some() {
+            match config.kind.as_ref().unwrap().as_str() {
+                "Deployment" => {
+                    if config.image.is_some() {
+                        let manifest = generate_deployment_manifest(&config)?;
+                        println!("\nKubernetes Deployment Manifest:\n{}", manifest);
+                        processed = true;
+                    } else {
+                        println!("\nError: Deployment requires an image to be specified");
+                    }
+                }
+                "Prometheus" => {
+                    if config.image.is_some() {
+                        let manifest = generate_prometheus_manifest(&config)?;
+                        println!("\nKubernetes Prometheus Manifest:\n{}", manifest);
+                        processed = true;
+                    } else {
+                        println!("\nError: Prometheus requires an image to be specified");
+                    }
+                }
+                kind => {
+                    println!("\nUnsupported kind: {}", kind);
+                }
+            }
+        }
+        
+        // Auto-detect type if no kind is specified and no nested configs
+        if !processed && config.kind.is_none() {
+            // Try to infer the kind based on the fields present
+            if config.replica_count.is_some() && config.image.is_some() {
+                println!("Auto-detecting as Deployment");
+                let manifest = generate_deployment_manifest(&config)?;
+                println!("\nKubernetes Deployment Manifest:\n{}", manifest);
+                processed = true;
+            } else if config.replicas.is_some() && config.image.is_some() {
+                println!("Auto-detecting as Prometheus");
+                let manifest = generate_prometheus_manifest(&config)?;
+                println!("\nKubernetes Prometheus Manifest:\n{}", manifest);
+                processed = true;
+            }
+        }
+
+        // If still not processed
+        if !processed {
+            println!("\nWarning: Could not determine resource type for document {}", doc_count);
         }
     }
 
-    // Process nested configs if present
-    if let Some(deployment_config) = &config.deployment {
-        println!("\nProcessing nested Deployment config");
-        let manifest = generate_deployment_manifest_from_config(&config.name, deployment_config)?;
-        println!("\nNested Kubernetes Deployment Manifest:\n{}", manifest);
-    }
-
-    if let Some(prometheus_config) = &config.prometheus {
-        println!("\nProcessing nested Prometheus config");
-        let manifest = generate_prometheus_manifest_from_config(&config.name, prometheus_config)?;
-        println!("\nNested Kubernetes Prometheus Manifest:\n{}", manifest);
+    if doc_count == 0 {
+        println!("No valid YAML documents found in file");
     }
 
     Ok(())
@@ -82,10 +137,15 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     labels.insert("app".to_string(), config.name.clone());
     metadata.labels = Some(labels.clone());
 
+    // Ensure image is available
+    let image = config.image.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("Image is required for Deployment")
+    })?;
+
     // Create container
     let mut container = Container {
         name: config.name.clone(),
-        image: Some(config.image.clone()),
+        image: Some(image.clone()),
         ..Default::default()
     };
 
@@ -354,8 +414,13 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
         prometheus_spec.resources = Some(prometheus_resources);
     }
 
+    // Ensure image is available
+    let image = config.image.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("Image is required for Prometheus")
+    })?;
+
     // Set image
-    prometheus_spec.image = Some(config.image.clone());
+    prometheus_spec.image = Some(image.clone());
 
     // Create Prometheus
     let prometheus = Prometheus {
