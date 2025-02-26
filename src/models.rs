@@ -20,10 +20,6 @@ pub struct KamutConfig {
     // Prometheus specific fields
     pub replicas: Option<i32>,
     pub retention: Option<String>,
-
-    // Sub-configs for different types
-    pub deployment: Option<DeploymentConfig>,
-    pub prometheus: Option<PrometheusConfig>,
 }
 
 #[derive(Debug, Deserialize)]
