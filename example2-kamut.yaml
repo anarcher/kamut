@@ -1,0 +1,12 @@
+name: example2
+kind: Prometheus
+image: prom/prometheus:v2.7.1
+retention: 15d
+replicas: 1
+resources:
+  requests:
+    memory: 400Mi
+    cpu: 500m
+  limits:
+    memory: 2Gi
+    cpu: 1000m

@@ -1,13 +1,41 @@
-name: example
-kind: Deployment
-image: hello:v0.1.0
-env:
-  DATABASE_URL: IN_VAULT
+name: example-combined
+kind: Combined
+# Common config
+image: default-image:latest
 resources:
   requests:
-    cpu: 100m
-    memory: 100Mi
+    cpu: 200m
+    memory: 200Mi
   limits:
-    cpu: 300m
-    memory: 300Mi
-replicaCount: 2
+    cpu: 500m
+    memory: 500Mi
+
+# Deployment config
+deployment:
+  name: app-server
+  image: hello:v0.1.0
+  env:
+    DATABASE_URL: IN_VAULT
+    LOG_LEVEL: INFO
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 300m
+      memory: 300Mi
+  replicaCount: 2
+
+# Prometheus config  
+prometheus:
+  name: monitoring
+  image: prom/prometheus:v2.7.1
+  replicas: 1
+  retention: 15d
+  resources:
+    requests:
+      memory: 400Mi
+      cpu: 500m
+    limits:
+      memory: 2Gi
+      cpu: 1000m
