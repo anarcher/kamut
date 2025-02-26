@@ -29,7 +29,7 @@ pub enum Commands {
     /// Generate Kubernetes manifests from kamut files
     Generate {
         /// File pattern to search for
-        #[clap(default_value = "*-kamut.yaml")]
+        #[clap(default_value = "*.kamut.yaml")]
         pattern: String,
     },
 }

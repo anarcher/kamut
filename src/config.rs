@@ -53,11 +53,20 @@ pub fn process_file(file_path: &Path) -> Result<()> {
         }
 
         doc_count += 1;
-        println!("\nProcessing document {} in {}", doc_count, file_path.display());
+        println!(
+            "\nProcessing document {} in {}",
+            doc_count,
+            file_path.display()
+        );
 
         // Parse the YAML to KamutConfig
-        let config: KamutConfig = serde_yaml::from_str(doc)
-            .with_context(|| format!("Failed to parse document {} in {}", doc_count, file_path.display()))?;
+        let config: KamutConfig = serde_yaml::from_str(doc).with_context(|| {
+            format!(
+                "Failed to parse document {} in {}",
+                doc_count,
+                file_path.display()
+            )
+        })?;
 
         // Process configs based on what's present in the file
         let mut processed = false;
@@ -88,7 +97,7 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                 }
             }
         }
-        
+
         // Auto-detect type if no kind is specified
         if !processed && config.kind.is_none() {
             // Try to infer the kind based on the fields present
@@ -107,7 +116,10 @@ pub fn process_file(file_path: &Path) -> Result<()> {
 
         // If still not processed
         if !processed {
-            println!("\nWarning: Could not determine resource type for document {}", doc_count);
+            println!(
+                "\nWarning: Could not determine resource type for document {}",
+                doc_count
+            );
         }
     }
 
@@ -129,9 +141,10 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     metadata.labels = Some(labels.clone());
 
     // Ensure image is available
-    let image = config.image.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("Image is required for Deployment")
-    })?;
+    let image = config
+        .image
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Image is required for Deployment"))?;
 
     // Create container
     let mut container = Container {
@@ -286,9 +299,10 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     }
 
     // Ensure image is available
-    let image = config.image.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("Image is required for Prometheus")
-    })?;
+    let image = config
+        .image
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Image is required for Prometheus"))?;
 
     // Set image
     prometheus_spec.image = Some(image.clone());
