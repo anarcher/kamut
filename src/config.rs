@@ -1,17 +1,21 @@
 use anyhow::{Context, Result};
 use glob::glob;
 use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec};
-use k8s_openapi::api::core::v1::{Container, EnvVar, PodSpec, PodTemplateSpec, ResourceRequirements};
-use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+use k8s_openapi::api::core::v1::{
+    Container, EnvVar, PodSpec, PodTemplateSpec, ResourceRequirements,
+};
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
-use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{Prometheus, PrometheusSpec};
+use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
+    Prometheus, PrometheusSpec,
+};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use crate::models::{KamutConfig, DeploymentConfig, PrometheusConfig};
+use crate::models::{DeploymentConfig, KamutConfig, PrometheusConfig};
 
 pub fn find_config_files(pattern: &str) -> Result<Vec<std::path::PathBuf>> {
     let files: Vec<_> = glob(pattern)
@@ -35,18 +39,18 @@ pub fn process_file(file_path: &Path) -> Result<()> {
     let config: KamutConfig = serde_yaml::from_str(&contents)
         .with_context(|| format!("Failed to parse YAML from: {}", file_path.display()))?;
 
-    println!("Config: {:#?}", config);
-    
+    //println!("Config: {:#?}", config);
+
     // Generate Kubernetes manifest
     match config.kind.as_str() {
         "Deployment" => {
             let manifest = generate_deployment_manifest(&config)?;
             println!("\nKubernetes Deployment Manifest:\n{}", manifest);
-        },
+        }
         "Prometheus" => {
             let manifest = generate_prometheus_manifest(&config)?;
             println!("\nKubernetes Prometheus Manifest:\n{}", manifest);
-        },
+        }
         _ => {
             println!("\nUnsupported kind: {}", config.kind);
         }
@@ -72,19 +76,19 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
     let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
     metadata.name = Some(config.name.clone());
-    
+
     // Create labels
     let mut labels = BTreeMap::new();
     labels.insert("app".to_string(), config.name.clone());
     metadata.labels = Some(labels.clone());
-    
+
     // Create container
     let mut container = Container {
         name: config.name.clone(),
         image: Some(config.image.clone()),
         ..Default::default()
     };
-    
+
     // Add environment variables if available
     if let Some(env_vars) = &config.env {
         let mut env = Vec::new();
@@ -97,11 +101,11 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
         }
         container.env = Some(env);
     }
-    
+
     // Add resource requirements if available
     if let Some(resources) = &config.resources {
         let mut resource_requirements = ResourceRequirements::default();
-        
+
         // Add requests
         if let Some(requests) = &resources.requests {
             let mut request_map = BTreeMap::new();
@@ -113,7 +117,7 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
             }
             resource_requirements.requests = Some(request_map);
         }
-        
+
         // Add limits
         if let Some(limits) = &resources.limits {
             let mut limit_map = BTreeMap::new();
@@ -125,25 +129,26 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
             }
             resource_requirements.limits = Some(limit_map);
         }
-        
+
         container.resources = Some(resource_requirements);
     }
-    
+
     // Create pod spec
     let pod_spec = PodSpec {
         containers: vec![container],
         ..Default::default()
     };
-    
+
     // Create pod template spec
-    let mut template_metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
+    let mut template_metadata =
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
     template_metadata.labels = Some(labels);
-    
+
     let pod_template_spec = PodTemplateSpec {
         metadata: Some(template_metadata),
         spec: Some(pod_spec),
     };
-    
+
     // Create selector
     let mut match_labels = BTreeMap::new();
     match_labels.insert("app".to_string(), config.name.clone());
@@ -151,7 +156,7 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
         match_labels: Some(match_labels),
         ..Default::default()
     };
-    
+
     // Create deployment spec
     let deployment_spec = DeploymentSpec {
         replicas: config.replica_count,
@@ -159,47 +164,53 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
         template: pod_template_spec,
         ..Default::default()
     };
-    
+
     // Create deployment
     let deployment = Deployment {
         metadata,
         spec: Some(deployment_spec),
         ..Default::default()
     };
-    
+
     // Serialize to YAML
-    let yaml = serde_yaml::to_string(&deployment)
-        .context("Failed to serialize deployment to YAML")?;
-    
+    let yaml =
+        serde_yaml::to_string(&deployment).context("Failed to serialize deployment to YAML")?;
+
     Ok(yaml)
 }
 
-pub fn generate_deployment_manifest_from_config(parent_name: &str, config: &DeploymentConfig) -> Result<String> {
+pub fn generate_deployment_manifest_from_config(
+    parent_name: &str,
+    config: &DeploymentConfig,
+) -> Result<String> {
     // Create metadata
     let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
-    
+
     // Use the nested config name if available, otherwise use parent name + "-deployment"
     let name = match &config.name {
         Some(name) => name.clone(),
         None => format!("{}-deployment", parent_name),
     };
-    
+
     metadata.name = Some(name.clone());
-    
+
     // Create labels
     let mut labels = BTreeMap::new();
     labels.insert("app".to_string(), name.clone());
     metadata.labels = Some(labels.clone());
-    
+
     // Create container with the provided image or fallback to parent config
-    let image = config.image.clone().unwrap_or_else(|| format!("default-image:{}", name));
-    
+    let image = config
+        .image
+        .clone()
+        .unwrap_or_else(|| format!("default-image:{}", name));
+
     let mut container = Container {
         name: name.clone(),
         image: Some(image),
         ..Default::default()
     };
-    
+
     // Add environment variables if available
     if let Some(env_vars) = &config.env {
         let mut env = Vec::new();
@@ -212,11 +223,11 @@ pub fn generate_deployment_manifest_from_config(parent_name: &str, config: &Depl
         }
         container.env = Some(env);
     }
-    
+
     // Add resource requirements if available
     if let Some(resources) = &config.resources {
         let mut resource_requirements = ResourceRequirements::default();
-        
+
         // Add requests
         if let Some(requests) = &resources.requests {
             let mut request_map = BTreeMap::new();
@@ -228,7 +239,7 @@ pub fn generate_deployment_manifest_from_config(parent_name: &str, config: &Depl
             }
             resource_requirements.requests = Some(request_map);
         }
-        
+
         // Add limits
         if let Some(limits) = &resources.limits {
             let mut limit_map = BTreeMap::new();
@@ -240,25 +251,26 @@ pub fn generate_deployment_manifest_from_config(parent_name: &str, config: &Depl
             }
             resource_requirements.limits = Some(limit_map);
         }
-        
+
         container.resources = Some(resource_requirements);
     }
-    
+
     // Create pod spec
     let pod_spec = PodSpec {
         containers: vec![container],
         ..Default::default()
     };
-    
+
     // Create pod template spec
-    let mut template_metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
+    let mut template_metadata =
+        k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
     template_metadata.labels = Some(labels);
-    
+
     let pod_template_spec = PodTemplateSpec {
         metadata: Some(template_metadata),
         spec: Some(pod_spec),
     };
-    
+
     // Create selector
     let mut match_labels = BTreeMap::new();
     match_labels.insert("app".to_string(), name.clone());
@@ -266,7 +278,7 @@ pub fn generate_deployment_manifest_from_config(parent_name: &str, config: &Depl
         match_labels: Some(match_labels),
         ..Default::default()
     };
-    
+
     // Create deployment spec
     let deployment_spec = DeploymentSpec {
         replicas: config.replica_count,
@@ -274,18 +286,18 @@ pub fn generate_deployment_manifest_from_config(parent_name: &str, config: &Depl
         template: pod_template_spec,
         ..Default::default()
     };
-    
+
     // Create deployment
     let deployment = Deployment {
         metadata,
         spec: Some(deployment_spec),
         ..Default::default()
     };
-    
+
     // Serialize to YAML
-    let yaml = serde_yaml::to_string(&deployment)
-        .context("Failed to serialize deployment to YAML")?;
-    
+    let yaml =
+        serde_yaml::to_string(&deployment).context("Failed to serialize deployment to YAML")?;
+
     Ok(yaml)
 }
 
@@ -293,28 +305,28 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
     let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
     metadata.name = Some(config.name.clone());
-    
+
     // Create labels
     let mut labels = BTreeMap::new();
     labels.insert("app".to_string(), config.name.clone());
     metadata.labels = Some(labels.clone());
-    
+
     // Create Prometheus spec
     let mut prometheus_spec = PrometheusSpec::default();
-    
+
     // Set replicas
     prometheus_spec.replicas = config.replicas;
-    
+
     // Set retention
     if let Some(retention) = &config.retention {
         prometheus_spec.retention = Some(retention.clone());
     }
-    
+
     // Set resource requirements if available
     if let Some(resources) = &config.resources {
         // Create PrometheusResources
         let mut prometheus_resources = kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::PrometheusResources::default();
-        
+
         // Add requests
         if let Some(requests) = &resources.requests {
             let mut requests_map = BTreeMap::new();
@@ -326,7 +338,7 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
             }
             prometheus_resources.requests = Some(requests_map);
         }
-        
+
         // Add limits
         if let Some(limits) = &resources.limits {
             let mut limits_map = BTreeMap::new();
@@ -338,60 +350,63 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
             }
             prometheus_resources.limits = Some(limits_map);
         }
-        
+
         prometheus_spec.resources = Some(prometheus_resources);
     }
-    
+
     // Set image
     prometheus_spec.image = Some(config.image.clone());
-    
+
     // Create Prometheus
     let prometheus = Prometheus {
         metadata,
         spec: prometheus_spec,
         status: None,
     };
-    
+
     // Serialize to YAML
-    let yaml = serde_yaml::to_string(&prometheus)
-        .context("Failed to serialize prometheus to YAML")?;
-    
+    let yaml =
+        serde_yaml::to_string(&prometheus).context("Failed to serialize prometheus to YAML")?;
+
     Ok(yaml)
 }
 
-pub fn generate_prometheus_manifest_from_config(parent_name: &str, config: &PrometheusConfig) -> Result<String> {
+pub fn generate_prometheus_manifest_from_config(
+    parent_name: &str,
+    config: &PrometheusConfig,
+) -> Result<String> {
     // Create metadata
     let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
-    
+
     // Use the nested config name if available, otherwise use parent name + "-prometheus"
     let name = match &config.name {
         Some(name) => name.clone(),
         None => format!("{}-prometheus", parent_name),
     };
-    
+
     metadata.name = Some(name.clone());
-    
+
     // Create labels
     let mut labels = BTreeMap::new();
     labels.insert("app".to_string(), name.clone());
     metadata.labels = Some(labels.clone());
-    
+
     // Create Prometheus spec
     let mut prometheus_spec = PrometheusSpec::default();
-    
+
     // Set replicas
     prometheus_spec.replicas = config.replicas;
-    
+
     // Set retention
     if let Some(retention) = &config.retention {
         prometheus_spec.retention = Some(retention.clone());
     }
-    
+
     // Set resource requirements if available
     if let Some(resources) = &config.resources {
         // Create PrometheusResources
         let mut prometheus_resources = kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::PrometheusResources::default();
-        
+
         // Add requests
         if let Some(requests) = &resources.requests {
             let mut requests_map = BTreeMap::new();
@@ -403,7 +418,7 @@ pub fn generate_prometheus_manifest_from_config(parent_name: &str, config: &Prom
             }
             prometheus_resources.requests = Some(requests_map);
         }
-        
+
         // Add limits
         if let Some(limits) = &resources.limits {
             let mut limits_map = BTreeMap::new();
@@ -415,24 +430,27 @@ pub fn generate_prometheus_manifest_from_config(parent_name: &str, config: &Prom
             }
             prometheus_resources.limits = Some(limits_map);
         }
-        
+
         prometheus_spec.resources = Some(prometheus_resources);
     }
-    
+
     // Set image from config or use default
-    let image = config.image.clone().unwrap_or_else(|| "prom/prometheus:latest".to_string());
+    let image = config
+        .image
+        .clone()
+        .unwrap_or_else(|| "prom/prometheus:latest".to_string());
     prometheus_spec.image = Some(image);
-    
+
     // Create Prometheus
     let prometheus = Prometheus {
         metadata,
         spec: prometheus_spec,
         status: None,
     };
-    
+
     // Serialize to YAML
-    let yaml = serde_yaml::to_string(&prometheus)
-        .context("Failed to serialize prometheus to YAML")?;
-    
+    let yaml =
+        serde_yaml::to_string(&prometheus).context("Failed to serialize prometheus to YAML")?;
+
     Ok(yaml)
 }
