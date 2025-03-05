@@ -4,9 +4,14 @@ use clap::Parser;
 fn main() -> Result<()> {
     let cli = kamut::cli::Cli::parse();
 
+    // If a command is specified, use it; otherwise, use the pattern from the top-level args
     match &cli.command {
-        kamut::cli::Commands::Generate { pattern } => {
+        Some(kamut::cli::Commands::Generate { pattern }) => {
             generate_manifests(pattern)?;
+        }
+        None => {
+            // No command specified, use the pattern from the top-level args
+            generate_manifests(&cli.pattern)?;
         }
     }
 

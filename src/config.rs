@@ -11,7 +11,7 @@ use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
     Prometheus, PrometheusSpec,
 };
 use std::collections::BTreeMap;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
 
@@ -41,6 +41,9 @@ pub fn process_file(file_path: &Path) -> Result<()> {
         println!("Skipping combined-kamut.yaml file as it's not supported");
         return Ok(());
     }
+
+    // Store the last generated manifest
+    let mut last_manifest = String::new();
 
     // Handle multi-document YAML files by splitting on "---" separator
     let documents: Vec<&str> = contents.split("---").collect();
@@ -77,7 +80,8 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                 "Deployment" => {
                     if config.image.is_some() {
                         let manifest = generate_deployment_manifest(&config)?;
-                        println!("\nKubernetes Deployment Manifest:\n{}", manifest);
+                        // Don't print the manifest to console
+                        last_manifest = manifest;
                         processed = true;
                     } else {
                         println!("\nError: Deployment requires an image to be specified");
@@ -86,7 +90,8 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                 "Prometheus" => {
                     if config.image.is_some() {
                         let manifest = generate_prometheus_manifest(&config)?;
-                        println!("\nKubernetes Prometheus Manifest:\n{}", manifest);
+                        // Don't print the manifest to console
+                        last_manifest = manifest;
                         processed = true;
                     } else {
                         println!("\nError: Prometheus requires an image to be specified");
@@ -104,12 +109,14 @@ pub fn process_file(file_path: &Path) -> Result<()> {
             if config.replica_count.is_some() && config.image.is_some() {
                 println!("Auto-detecting as Deployment");
                 let manifest = generate_deployment_manifest(&config)?;
-                println!("\nKubernetes Deployment Manifest:\n{}", manifest);
+                // Don't print the manifest to console
+                last_manifest = manifest;
                 processed = true;
             } else if config.replicas.is_some() && config.image.is_some() {
                 println!("Auto-detecting as Prometheus");
                 let manifest = generate_prometheus_manifest(&config)?;
-                println!("\nKubernetes Prometheus Manifest:\n{}", manifest);
+                // Don't print the manifest to console
+                last_manifest = manifest;
                 processed = true;
             }
         }
@@ -125,6 +132,28 @@ pub fn process_file(file_path: &Path) -> Result<()> {
 
     if doc_count == 0 {
         println!("No valid YAML documents found in file");
+    } else if !last_manifest.is_empty() {
+        // Create output file name based on the input file name
+        if let Some(file_name) = file_path.file_name().and_then(|f| f.to_str()) {
+            // Extract the base name without the extension
+            let base_name = if let Some(dot_pos) = file_name.find(".kamut.") {
+                &file_name[0..dot_pos]
+            } else if let Some(dot_pos) = file_name.find('.') {
+                &file_name[0..dot_pos]
+            } else {
+                file_name // No extension, use the whole name
+            };
+            
+            // Create the output file name with .yaml extension
+            let output_file_name = format!("{}.yaml", base_name);
+            let output_path = file_path.parent().unwrap_or(Path::new("")).join(output_file_name);
+            
+            // Write the manifest to the output file
+            fs::write(&output_path, &last_manifest)
+                .with_context(|| format!("Failed to write to file: {}", output_path.display()))?;
+            
+            println!("\nSaved manifest to: {}", output_path.display());
+        }
     }
 
     Ok(())

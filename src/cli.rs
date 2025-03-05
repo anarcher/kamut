@@ -12,7 +12,7 @@ pub struct Args {
     pub name: Option<String>,
 }
 
-/// CLI interface for kamut using subcommands
+/// CLI interface for kamut
 #[derive(Parser, Debug)]
 #[clap(
     author,
@@ -20,8 +20,13 @@ pub struct Args {
     about = "Generate Kubernetes manifests from kamut configuration files"
 )]
 pub struct Cli {
+    /// File pattern to search for
+    #[clap(default_value = "*.kamut.yaml")]
+    pub pattern: String,
+
+    /// Optional subcommand
     #[clap(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 #[derive(Subcommand, Debug)]
