@@ -36,11 +36,6 @@ pub fn process_file(file_path: &Path) -> Result<()> {
     file.read_to_string(&mut contents)
         .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
-    // Don't process combined file
-    if file_path.file_name().and_then(|f| f.to_str()).unwrap_or("") == "combined-kamut.yaml" {
-        println!("Skipping combined-kamut.yaml file as it's not supported");
-        return Ok(());
-    }
 
     // Store the last generated manifest
     let mut last_manifest = String::new();
@@ -71,53 +66,38 @@ pub fn process_file(file_path: &Path) -> Result<()> {
             )
         })?;
 
+        // Check if kind is specified, return error if missing
+        let kind = config.kind.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Error: 'kind' field is required in document {} of {}", doc_count, file_path.display())
+        })?;
+
         // Process configs based on what's present in the file
         let mut processed = false;
 
-        // If kind is explicitly specified, use that
-        if config.kind.is_some() {
-            match config.kind.as_ref().unwrap().as_str() {
-                "Deployment" => {
-                    if config.image.is_some() {
-                        let manifest = generate_deployment_manifest(&config)?;
-                        // Don't print the manifest to console
-                        last_manifest = manifest;
-                        processed = true;
-                    } else {
-                        println!("\nError: Deployment requires an image to be specified");
-                    }
-                }
-                "Prometheus" => {
-                    if config.image.is_some() {
-                        let manifest = generate_prometheus_manifest(&config)?;
-                        // Don't print the manifest to console
-                        last_manifest = manifest;
-                        processed = true;
-                    } else {
-                        println!("\nError: Prometheus requires an image to be specified");
-                    }
-                }
-                kind => {
-                    println!("\nUnsupported kind: {}", kind);
+        // Process based on the specified kind
+        match kind.as_str() {
+            "Deployment" => {
+                if config.image.is_some() {
+                    let manifest = generate_deployment_manifest(&config)?;
+                    // Don't print the manifest to console
+                    last_manifest = manifest;
+                    processed = true;
+                } else {
+                    println!("\nError: Deployment requires an image to be specified");
                 }
             }
-        }
-
-        // Auto-detect type if no kind is specified
-        if !processed && config.kind.is_none() {
-            // Try to infer the kind based on the fields present
-            if config.image.is_some() && !config.replicas.is_some() {
-                println!("Auto-detecting as Deployment");
-                let manifest = generate_deployment_manifest(&config)?;
-                // Don't print the manifest to console
-                last_manifest = manifest;
-                processed = true;
-            } else if config.replicas.is_some() && config.image.is_some() {
-                println!("Auto-detecting as Prometheus");
-                let manifest = generate_prometheus_manifest(&config)?;
-                // Don't print the manifest to console
-                last_manifest = manifest;
-                processed = true;
+            "Prometheus" => {
+                if config.image.is_some() {
+                    let manifest = generate_prometheus_manifest(&config)?;
+                    // Don't print the manifest to console
+                    last_manifest = manifest;
+                    processed = true;
+                } else {
+                    println!("\nError: Prometheus requires an image to be specified");
+                }
+            }
+            kind => {
+                println!("\nUnsupported kind: {}", kind);
             }
         }
 

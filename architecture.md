@@ -30,7 +30,7 @@ Defines the data structures used in the application:
 
 - `KamutConfig`: The main configuration structure with common fields:
   - `name`: Name of the resource
-  - `kind`: Type of resource (Deployment or Prometheus)
+  - `kind`: Type of resource (Deployment or Prometheus) - **Required field**
   - `image`: Container image to use
   - `env`: Environment variables
   - `resources`: Resource requirements
@@ -47,7 +47,10 @@ Defines the data structures used in the application:
 2. For each file, it:
    - Reads the file content
    - Splits the content into documents (separated by "---")
-   - Processes each document, generating a manifest
+   - Processes each document:
+     - Parses the YAML to KamutConfig
+     - Validates that the `kind` field is specified (returns an error if missing)
+     - Generates the appropriate manifest based on the specified kind
    - Saves the last generated manifest to a file with the same base name but with a ".yaml" extension
    - For example, if the input file is "a.kamut.yaml", the output will be saved to "a.yaml"
 
