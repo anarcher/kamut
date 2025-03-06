@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: app-frontend
+  name: app-frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-frontend
+  template:
+    metadata:
+      labels:
+        app: app-frontend
+    spec:
+      containers:
+      - env:
+        - name: APP_ENV
+          value: production
+        image: nginx:1.19
+        name: app-frontend
+        resources:
+          limits:
+            cpu: 500m
+            memory: 500Mi
+          requests:
+            cpu: 200m
+            memory: 200Mi
+      nodeSelector:
+        group: frontend

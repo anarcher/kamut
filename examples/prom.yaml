@@ -6,6 +6,8 @@ metadata:
   name: example2
 spec:
   image: prom/prometheus:v2.7.1
+  nodeSelector:
+    group: monitoring
   replicas: 1
   resources:
     limits:
@@ -22,3 +24,8 @@ spec:
           requests:
             storage: 200Gi
         storageClassName: gp3-prom
+  tolerations:
+  - effect: NoSchedule
+    key: group
+    operator: Equal
+    value: monitoring

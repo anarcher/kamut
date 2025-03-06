@@ -12,6 +12,8 @@ resources:
     cpu: 300m
     memory: 300Mi
 replicas: 2
+node_selector:
+  group: frontend
 ---
 name: monitoring
 kind: Prometheus

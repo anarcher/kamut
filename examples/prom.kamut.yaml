@@ -13,3 +13,5 @@ resources:
 storage:
   size: 200Gi
   className: gp3-prom
+node_selector:
+  group: monitoring

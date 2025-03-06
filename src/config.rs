@@ -10,7 +10,7 @@ use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
     Prometheus, PrometheusResources, PrometheusSpec, PrometheusStorage,
     PrometheusStorageVolumeClaimTemplate, PrometheusStorageVolumeClaimTemplateSpec,
-    PrometheusStorageVolumeClaimTemplateSpecResources,
+    PrometheusStorageVolumeClaimTemplateSpecResources, PrometheusTolerations,
 };
 use std::collections::BTreeMap;
 use std::fs::{self, File};
@@ -215,9 +215,15 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     }
 
     // Create pod spec
-    let pod_spec = PodSpec {
+    let mut pod_spec = PodSpec {
         containers: vec![container],
         ..Default::default()
+    };
+
+    // Add nodeSelector if available
+    if let Some(node_selector) = &config.node_selector {
+        let node_selector_map = node_selector.clone().into_iter().collect();
+        pod_spec.node_selector = Some(node_selector_map);
     };
 
     // Create pod template spec
@@ -352,6 +358,27 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
 
         // Set storage spec in Prometheus spec
         prometheus_spec.storage = Some(storage);
+    }
+
+    // Set nodeSelector if available
+    if let Some(node_selector) = &config.node_selector {
+        let node_selector_map = node_selector.clone().into_iter().collect();
+        prometheus_spec.node_selector = Some(node_selector_map);
+
+        let tolerations = Some(
+            node_selector
+                .iter()
+                .map(|(key, value)| PrometheusTolerations {
+                    effect: Some("NoSchedule".to_string()),
+                    key: Some(key.clone()),
+                    operator: Some("Equal".to_string()),
+                    value: Some(value.clone()),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+
+        prometheus_spec.tolerations = tolerations;
     }
 
     // Create Prometheus

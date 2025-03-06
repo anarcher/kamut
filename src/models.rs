@@ -13,6 +13,7 @@ pub struct KamutConfig {
     pub env: Option<HashMap<String, String>>,
     pub resources: Option<Resources>,
     pub storage: Option<Storage>,
+    pub node_selector: Option<HashMap<String, String>>,
 
     // Prometheus specific fields
     pub replicas: Option<i32>,
