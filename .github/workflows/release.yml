@@ -33,6 +33,11 @@ jobs:
         with:
           go-version: "1.23"
 
+      - name: Setup osxcross for MacOS cross-compilation
+        uses: mbround18/setup-osxcross@v1
+        with:
+          osx-version: "12.3"
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
