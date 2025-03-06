@@ -266,8 +266,6 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     Ok(yaml)
 }
 
-// Removed nested config functions
-
 pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
     let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
