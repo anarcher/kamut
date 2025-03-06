@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: app-with-replicas
+  name: app-with-replicas
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: app-with-replicas
+  template:
+    metadata:
+      labels:
+        app: app-with-replicas
+    spec:
+      containers:
+      - env:
+        - name: DATABASE_URL
+          value: IN_VAULT
+        - name: LOG_LEVEL
+          value: INFO
+        image: hello:v0.1.0
+        name: app-with-replicas
+        resources:
+          limits:
+            cpu: 300m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi

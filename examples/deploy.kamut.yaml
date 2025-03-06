@@ -10,7 +10,7 @@ resources:
   limits:
     cpu: 300m
     memory: 300Mi
-replicaCount: 2
+replicas: 2
 ---
 name: monitoring
 image: prom/prometheus:v2.7.1

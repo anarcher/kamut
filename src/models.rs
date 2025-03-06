@@ -13,10 +13,6 @@ pub struct KamutConfig {
     pub env: Option<HashMap<String, String>>,
     pub resources: Option<Resources>,
 
-    // Deployment specific fields
-    #[serde(rename = "replicaCount")]
-    pub replica_count: Option<i32>,
-
     // Prometheus specific fields
     pub replicas: Option<i32>,
     pub retention: Option<String>,

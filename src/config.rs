@@ -106,7 +106,7 @@ pub fn process_file(file_path: &Path) -> Result<()> {
         // Auto-detect type if no kind is specified
         if !processed && config.kind.is_none() {
             // Try to infer the kind based on the fields present
-            if config.replica_count.is_some() && config.image.is_some() {
+            if config.image.is_some() && !config.replicas.is_some() {
                 println!("Auto-detecting as Deployment");
                 let manifest = generate_deployment_manifest(&config)?;
                 // Don't print the manifest to console
@@ -252,7 +252,7 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
 
     // Create deployment spec
     let deployment_spec = DeploymentSpec {
-        replicas: config.replica_count,
+        replicas: config.replicas, // Use replicas from config
         selector,
         template: pod_template_spec,
         ..Default::default()
@@ -290,10 +290,8 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     // Set replicas
     prometheus_spec.replicas = config.replicas;
 
-    // Set retention
-    if let Some(retention) = &config.retention {
-        prometheus_spec.retention = Some(retention.clone());
-    }
+    // Set retention (default to 15d if not provided)
+    prometheus_spec.retention = Some(config.retention.clone().unwrap_or_else(|| "15d".to_string()));
 
     // Set resource requirements if available
     if let Some(resources) = &config.resources {

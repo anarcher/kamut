@@ -28,7 +28,14 @@ Handles the processing of configuration files:
 
 Defines the data structures used in the application:
 
-- `KamutConfig`: The main configuration structure
+- `KamutConfig`: The main configuration structure with common fields:
+  - `name`: Name of the resource
+  - `kind`: Type of resource (Deployment or Prometheus)
+  - `image`: Container image to use
+  - `env`: Environment variables
+  - `resources`: Resource requirements
+  - `replicas`: Number of replicas (used for both Deployment and Prometheus)
+  - `retention`: Retention period for Prometheus (defaults to 15d)
 - `DeploymentConfig`: Configuration for Kubernetes Deployments
 - `PrometheusConfig`: Configuration for Prometheus
 - `Resources`: Resource requirements
