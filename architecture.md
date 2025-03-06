@@ -4,6 +4,22 @@
 
 Kamut is a tool for generating Kubernetes manifests from simplified configuration files. It takes `.kamut.yaml` files as input and generates Kubernetes-compatible YAML manifests.
 
+## Release Process
+
+Kamut uses GitHub Actions with GoReleaser to automate the release process:
+
+1. Create and push a new tag with the version number (e.g., `v0.1.0`)
+2. GitHub Actions automatically triggers the release workflow
+3. The workflow builds the Rust binary for multiple platforms (Linux, macOS, Windows)
+4. GoReleaser packages the binaries and creates a GitHub release
+5. Release artifacts are uploaded to the GitHub release page
+
+To create a new release:
+```bash
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
 ## Components
 
 ### CLI (cli.rs)

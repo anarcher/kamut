@@ -1,1 +1,18 @@
+# Rust build artifacts
 /target
+**/*.rs.bk
+Cargo.lock
+*.pdb
+
+# GoReleaser artifacts
+/dist/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
