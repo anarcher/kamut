@@ -10,3 +10,6 @@ resources:
   limits:
     memory: 2Gi
     cpu: 1000m
+storage:
+  size: 200Gi
+  className: gp3-prom

@@ -12,6 +12,7 @@ pub struct KamutConfig {
     pub image: Option<String>,
     pub env: Option<HashMap<String, String>>,
     pub resources: Option<Resources>,
+    pub storage: Option<Storage>,
 
     // Prometheus specific fields
     pub replicas: Option<i32>,
@@ -47,6 +48,13 @@ pub struct Resources {
 pub struct ResourceSpec {
     pub cpu: Option<String>,
     pub memory: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+pub struct Storage {
+    pub size: String,
+    #[serde(rename = "className")]
+    pub class_name: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

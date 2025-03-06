@@ -8,7 +8,9 @@ use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
-    Prometheus, PrometheusSpec,
+    Prometheus, PrometheusResources, PrometheusSpec, PrometheusStorage,
+    PrometheusStorageVolumeClaimTemplate, PrometheusStorageVolumeClaimTemplateSpec,
+    PrometheusStorageVolumeClaimTemplateSpecResources,
 };
 use std::collections::BTreeMap;
 use std::fs::{self, File};
@@ -35,7 +37,6 @@ pub fn process_file(file_path: &Path) -> Result<()> {
     let mut contents = String::new();
     file.read_to_string(&mut contents)
         .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
-
 
     // Store the last generated manifest
     let mut last_manifest = String::new();
@@ -68,7 +69,11 @@ pub fn process_file(file_path: &Path) -> Result<()> {
 
         // Check if kind is specified, return error if missing
         let kind = config.kind.as_ref().ok_or_else(|| {
-            anyhow::anyhow!("Error: 'kind' field is required in document {} of {}", doc_count, file_path.display())
+            anyhow::anyhow!(
+                "Error: 'kind' field is required in document {} of {}",
+                doc_count,
+                file_path.display()
+            )
         })?;
 
         // Process configs based on what's present in the file
@@ -123,15 +128,18 @@ pub fn process_file(file_path: &Path) -> Result<()> {
             } else {
                 file_name // No extension, use the whole name
             };
-            
+
             // Create the output file name with .yaml extension
             let output_file_name = format!("{}.yaml", base_name);
-            let output_path = file_path.parent().unwrap_or(Path::new("")).join(output_file_name);
-            
+            let output_path = file_path
+                .parent()
+                .unwrap_or(Path::new(""))
+                .join(output_file_name);
+
             // Write the manifest to the output file
             fs::write(&output_path, &last_manifest)
                 .with_context(|| format!("Failed to write to file: {}", output_path.display()))?;
-            
+
             println!("\nSaved manifest to: {}", output_path.display());
         }
     }
@@ -271,12 +279,17 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     prometheus_spec.replicas = config.replicas;
 
     // Set retention (default to 15d if not provided)
-    prometheus_spec.retention = Some(config.retention.clone().unwrap_or_else(|| "15d".to_string()));
+    prometheus_spec.retention = Some(
+        config
+            .retention
+            .clone()
+            .unwrap_or_else(|| "15d".to_string()),
+    );
 
     // Set resource requirements if available
     if let Some(resources) = &config.resources {
         // Create PrometheusResources
-        let mut prometheus_resources = kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::PrometheusResources::default();
+        let mut prometheus_resources = PrometheusResources::default();
 
         // Add requests
         if let Some(requests) = &resources.requests {
@@ -313,6 +326,33 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
 
     // Set image
     prometheus_spec.image = Some(image.clone());
+
+    // Set storage if available
+    if let Some(storage_cfg) = &config.storage {
+        let mut requests = BTreeMap::new();
+        requests.insert(
+            "storage".to_string(),
+            IntOrString::String(storage_cfg.size.clone()),
+        );
+
+        let storage = PrometheusStorage {
+            volume_claim_template: Some(PrometheusStorageVolumeClaimTemplate {
+                spec: Some(PrometheusStorageVolumeClaimTemplateSpec {
+                    storage_class_name: Some(storage_cfg.class_name.clone()),
+                    resources: Some(PrometheusStorageVolumeClaimTemplateSpecResources {
+                        requests: Some(requests.clone()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        // Set storage spec in Prometheus spec
+        prometheus_spec.storage = Some(storage);
+    }
 
     // Create Prometheus
     let prometheus = Prometheus {
