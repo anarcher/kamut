@@ -40,6 +40,7 @@ Handles the processing of configuration files:
 - `process_file`: Processes a single file, generating manifests and saving them to output files
 - `generate_deployment_manifest`: Generates a Kubernetes Deployment manifest
 - `generate_prometheus_manifest`: Generates a Prometheus manifest
+- `generate_prometheus_ingress`: Generates a Kubernetes Ingress manifest for Prometheus
 
 ### Models (models.rs)
 
@@ -53,6 +54,8 @@ Defines the data structures used in the application:
   - `resources`: Resource requirements
   - `replicas`: Number of replicas (used for both Deployment and Prometheus)
   - `retention`: Retention period for Prometheus (defaults to 15d)
+  - `ingress`: Ingress configuration for Prometheus:
+    - `host`: Hostname for the Ingress resource
 - `DeploymentConfig`: Configuration for Kubernetes Deployments
 - `PrometheusConfig`: Configuration for Prometheus
 - `Resources`: Resource requirements
@@ -68,7 +71,8 @@ Defines the data structures used in the application:
      - Parses the YAML to KamutConfig
      - Validates that the `kind` field is specified (returns an error if missing)
      - Generates the appropriate manifest based on the specified kind
-   - Saves the last generated manifest to a file with the same base name but with a ".yaml" extension
+     - For Prometheus resources with ingress configuration, an additional Ingress manifest is generated
+   - Saves all generated manifests to a file with the same base name but with a ".yaml" extension, separated by "---"
    - For example, if the input file is "a.kamut.yaml", the output will be saved to "a.yaml"
 
 ## Output Behavior

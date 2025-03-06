@@ -18,6 +18,12 @@ pub struct KamutConfig {
     // Prometheus specific fields
     pub replicas: Option<i32>,
     pub retention: Option<String>,
+    pub ingress: Option<Ingress>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+pub struct Ingress {
+    pub host: String,
 }
 
 #[derive(Debug, Deserialize)]

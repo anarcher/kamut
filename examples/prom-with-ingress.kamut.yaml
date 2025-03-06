@@ -1,4 +1,4 @@
-name: example2
+name: prometheus-example
 kind: Prometheus
 image: prom/prometheus:v2.7.1
 retention: 15d
@@ -16,4 +16,4 @@ storage:
 node_selector:
   group: monitoring
 ingress:
-  host: "example.com"
+  host: prometheus.example.com

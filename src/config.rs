@@ -4,8 +4,14 @@ use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
     Container, EnvVar, PodSpec, PodTemplateSpec, ResourceRequirements,
 };
+
+use k8s_openapi::api::networking::v1::{
+    HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule,
+    IngressServiceBackend, IngressSpec, ServiceBackendPort,
+};
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
     Prometheus, PrometheusResources, PrometheusSpec, PrometheusStorage,
@@ -38,8 +44,8 @@ pub fn process_file(file_path: &Path) -> Result<()> {
     file.read_to_string(&mut contents)
         .with_context(|| format!("Failed to read file: {}", file_path.display()))?;
 
-    // Store the last generated manifest
-    let mut last_manifest = String::new();
+    // Store the generated manifests
+    let mut manifests = Vec::new();
 
     // Handle multi-document YAML files by splitting on "---" separator
     let documents: Vec<&str> = contents.split("---").collect();
@@ -84,8 +90,7 @@ pub fn process_file(file_path: &Path) -> Result<()> {
             "Deployment" => {
                 if config.image.is_some() {
                     let manifest = generate_deployment_manifest(&config)?;
-                    // Don't print the manifest to console
-                    last_manifest = manifest;
+                    manifests.push(manifest);
                     processed = true;
                 } else {
                     println!("\nError: Deployment requires an image to be specified");
@@ -94,8 +99,15 @@ pub fn process_file(file_path: &Path) -> Result<()> {
             "Prometheus" => {
                 if config.image.is_some() {
                     let manifest = generate_prometheus_manifest(&config)?;
-                    // Don't print the manifest to console
-                    last_manifest = manifest;
+                    manifests.push(manifest);
+
+                    // Generate Ingress if specified
+                    if let Some(ingress_config) = &config.ingress {
+                        let ingress_manifest =
+                            generate_prometheus_ingress(&config, ingress_config)?;
+                        manifests.push(ingress_manifest);
+                    }
+
                     processed = true;
                 } else {
                     println!("\nError: Prometheus requires an image to be specified");
@@ -117,7 +129,7 @@ pub fn process_file(file_path: &Path) -> Result<()> {
 
     if doc_count == 0 {
         println!("No valid YAML documents found in file");
-    } else if !last_manifest.is_empty() {
+    } else if !manifests.is_empty() {
         // Create output file name based on the input file name
         if let Some(file_name) = file_path.file_name().and_then(|f| f.to_str()) {
             // Extract the base name without the extension
@@ -136,8 +148,11 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                 .unwrap_or(Path::new(""))
                 .join(output_file_name);
 
+            // Join all manifests with "---" separator
+            let combined_manifest = manifests.join("\n---\n");
+
             // Write the manifest to the output file
-            fs::write(&output_path, &last_manifest)
+            fs::write(&output_path, &combined_manifest)
                 .with_context(|| format!("Failed to write to file: {}", output_path.display()))?;
 
             println!("\nSaved manifest to: {}", output_path.display());
@@ -147,9 +162,62 @@ pub fn process_file(file_path: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn generate_prometheus_ingress(
+    config: &KamutConfig,
+    ingress_config: &crate::models::Ingress,
+) -> Result<String> {
+    // Create metadata
+    let mut metadata = ObjectMeta::default();
+    metadata.name = Some(format!("{}-ingress", config.name));
+
+    // Create labels
+    let mut labels = BTreeMap::new();
+    labels.insert("app".to_string(), config.name.clone());
+    metadata.labels = Some(labels);
+
+    // Create ingress rule
+    let ingress_rule = IngressRule {
+        host: Some(ingress_config.host.clone()),
+        http: Some(HTTPIngressRuleValue {
+            paths: vec![HTTPIngressPath {
+                path: Some("/".to_string()),
+                path_type: "Prefix".to_string(),
+                backend: IngressBackend {
+                    service: Some(IngressServiceBackend {
+                        name: config.name.clone(),
+                        port: Some(ServiceBackendPort {
+                            number: Some(9090),
+                            name: None,
+                        }),
+                    }),
+                    resource: None,
+                },
+            }],
+        }),
+    };
+
+    // Create ingress spec
+    let ingress_spec = IngressSpec {
+        rules: Some(vec![ingress_rule]),
+        ..Default::default()
+    };
+
+    // Create ingress
+    let ingress = Ingress {
+        metadata,
+        spec: Some(ingress_spec),
+        status: None,
+    };
+
+    // Serialize to YAML
+    let yaml = serde_yaml::to_string(&ingress).context("Failed to serialize ingress to YAML")?;
+
+    Ok(yaml)
+}
+
 pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
-    let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
+    let mut metadata = ObjectMeta::default();
     metadata.name = Some(config.name.clone());
 
     // Create labels
@@ -227,8 +295,7 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     };
 
     // Create pod template spec
-    let mut template_metadata =
-        k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
+    let mut template_metadata = ObjectMeta::default();
     template_metadata.labels = Some(labels);
 
     let pod_template_spec = PodTemplateSpec {
@@ -268,7 +335,7 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
 
 pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
-    let mut metadata = k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta::default();
+    let mut metadata = ObjectMeta::default();
     metadata.name = Some(config.name.clone());
 
     // Create labels
