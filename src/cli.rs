@@ -37,6 +37,8 @@ pub enum Commands {
         #[clap(default_value = "*.kamut.yaml")]
         pattern: String,
     },
+    /// Display the version information
+    Version,
 }
 
 pub fn parse_args() -> Args {

@@ -14,6 +14,7 @@ The command-line interface for the application. It defines the available command
   - `pattern`: File pattern to search for (default: "*.kamut.yaml")
 - `generate`: Explicit command to generate Kubernetes manifests (optional)
   - `pattern`: File pattern to search for (default: "*.kamut.yaml")
+- `version`: Display the version information of the application
 
 ### Config (config.rs)
 

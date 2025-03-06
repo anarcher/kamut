@@ -9,6 +9,11 @@ fn main() -> Result<()> {
         Some(kamut::cli::Commands::Generate { pattern }) => {
             generate_manifests(pattern)?;
         }
+        Some(kamut::cli::Commands::Version) => {
+            // Display version information
+            let version = env!("CARGO_PKG_VERSION");
+            println!("Kamut version: {}", version);
+        }
         None => {
             // No command specified, use the pattern from the top-level args
             generate_manifests(&cli.pattern)?;
