@@ -13,11 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/goreleaser/goreleaser-cross:latest
-      options: --workdir ${{ github.workspace }} --privileged
+      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        working-directory: ${{ github.workspace }}
         with:
           fetch-depth: 0
 
@@ -40,9 +39,8 @@ jobs:
       - name: Run GoReleaser directly
         run: |
           echo ${{ github.workspace }}
-          cd ${{ github.workspace }}
           goreleaser release --clean --verbose
-        working-directory: ${{ github.workspace }}
+        working-directory: /__w/kamut/kamut
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
