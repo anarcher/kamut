@@ -14,10 +14,10 @@ jobs:
     container:
       image: ghcr.io/goreleaser/goreleaser-cross:latest
       options: --workdir ${{ github.workspace }} --privileged
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        working-directory: ${{ github.workspace }}
         with:
           fetch-depth: 0
 
@@ -38,7 +38,11 @@ jobs:
           go-version: "1.23"
 
       - name: Run GoReleaser directly
-        run: goreleaser release --clean
+        run: |
+          echo ${{ github.workspace }}
+          cd ${{ github.workspace }}
+          goreleaser release --clean --verbose
+        working-directory: ${{ github.workspace }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
