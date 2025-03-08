@@ -11,14 +11,16 @@ permissions:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/goreleaser/goreleaser-cross:latest
-      options: --privileged
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Set up MacOS Cross Compiler
+        uses: Timmmm/setup-osxcross@v2
+        with:
+          osx-version: "12.3"
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -36,19 +38,11 @@ jobs:
         with:
           go-version: "1.23"
 
-      - name: Run GoReleaser directly
-        run: |
-          echo ${{ github.workspace }}
-          goreleaser release --clean --verbose
-        working-directory: /__w/kamut/kamut
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --debug
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Run GoReleaser
-      #   uses: goreleaser/goreleaser-action@v6
-      #   with:
-      #     distribution: goreleaser
-      #     version: latest
-      #     args: release --clean --debug
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
