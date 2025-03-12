@@ -39,7 +39,7 @@ Handles the processing of configuration files:
 - `find_config_files`: Finds files matching a given pattern
 - `process_file`: Processes a single file, generating manifests and saving them to output files
 - `generate_deployment_manifest`: Generates a Kubernetes Deployment manifest
-- `generate_prometheus_manifest`: Generates a Prometheus manifest
+- `generate_prometheus_manifest`: Generates a Prometheus manifest with `serviceMonitorNamespaceSelector` set to `null`
 - `generate_prometheus_ingress`: Generates a Kubernetes Ingress manifest for Prometheus
 
 ### Models (models.rs)

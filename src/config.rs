@@ -141,6 +141,12 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                 file_name // No extension, use the whole name
             };
 
+            let base_name = if base_name.starts_with('.') {
+                &base_name[1..]
+            } else {
+                base_name
+            };
+
             // Create the output file name with .yaml extension
             let output_file_name = format!("{}.yaml", base_name);
             let output_path = file_path
@@ -397,6 +403,12 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
 
     // Set image
     prometheus_spec.image = Some(image.clone());
+
+    // Set serviceMonitor to null
+    prometheus_spec.service_monitor_namespace_selector = None;
+    prometheus_spec.service_monitor_selector = None;
+    prometheus_spec.pod_monitor_namespace_selector = None;
+    prometheus_spec.pod_monitor_selector = None;
 
     // Set storage if available
     if let Some(storage_cfg) = &config.storage {
