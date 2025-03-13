@@ -80,3 +80,49 @@ Defines the data structures used in the application:
 - The application does not print the generated manifests to the console
 - It only saves the manifests to output files
 - It prints information about the processing steps and the location of the saved files
+
+## Testing
+
+The project includes a comprehensive test suite to ensure functionality and reliability:
+
+### Unit Tests
+
+1. **Models Tests** (`tests/models_test.rs`):
+   - Tests deserialization of YAML to KamutConfig
+   - Validates handling of required and optional fields
+   - Tests error handling for missing required fields
+
+2. **Config Tests** (`tests/config_test.rs`):
+   - Tests file finding functionality
+   - Tests manifest generation for Deployments and Prometheus resources
+   - Tests Ingress manifest generation
+   - Tests file processing
+
+3. **CLI Tests** (`tests/cli_test.rs`):
+   - Tests command-line argument parsing
+   - Tests default values
+   - Tests subcommand handling
+
+### Integration Tests
+
+1. **Integration Tests** (`tests/integration_test.rs`):
+   - Tests the complete workflow from finding files to generating manifests
+   - Tests error handling for missing required fields
+   - Tests processing of multiple documents in a single file
+
+### Running Tests
+
+To run the test suite:
+```bash
+cargo test
+```
+
+To run a specific test:
+```bash
+cargo test test_name
+```
+
+To run tests with output:
+```bash
+cargo test -- --nocapture
+```

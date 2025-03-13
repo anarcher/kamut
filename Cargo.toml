@@ -13,3 +13,6 @@ schemars = "0.8"
 k8s-openapi = { version = "0.24", features = ["v1_31"] }
 #kube = { version = "0.87", features = ["derive", "client"] }
 kube-custom-resources-rs = { version = "2024.11.1", features = ["monitoring_coreos_com"] }
+
+[dev-dependencies]
+tempfile = "3.10"
