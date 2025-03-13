@@ -163,3 +163,50 @@ fn test_no_service_account_config() {
     // Verify that no manifests were generated
     assert_eq!(manifests.len(), 0);
 }
+
+#[test]
+fn test_default_service_account_create() {
+    // Create a test ServiceAccount configuration without specifying create and cluster_role (should default to true)
+    let service_account = ServiceAccount {
+        create: Default::default(), // This will use the default value (true)
+        annotations: None,
+        cluster_role: Default::default(), // This will use the default value (Some(true))
+    };
+
+    // Create a test KamutConfig
+    let config = KamutConfig {
+        name: "test-prometheus".to_string(),
+        kind: Some("Prometheus".to_string()),
+        image: Some("prom/prometheus:v2.7.1".to_string()),
+        env: None,
+        resources: None,
+        replicas: None,
+        retention: None,
+        ingress: None,
+        storage: None,
+        node_selector: None,
+        service_account: Some(service_account),
+    };
+
+    // Generate the ServiceAccount manifests
+    let manifests = generate_prometheus_service_account(&config).unwrap();
+
+    // Verify that three manifests were generated (ServiceAccount, ClusterRole, ClusterRoleBinding)
+    assert_eq!(manifests.len(), 3);
+
+    // Verify ServiceAccount manifest
+    let sa_manifest = &manifests[0];
+    assert!(sa_manifest.contains("kind: ServiceAccount"));
+    assert!(sa_manifest.contains("name: prometheus-test-prometheus"));
+    assert!(sa_manifest.contains("automountServiceAccountToken: true"));
+    
+    // Verify ClusterRole manifest
+    let cr_manifest = &manifests[1];
+    assert!(cr_manifest.contains("kind: ClusterRole"));
+    assert!(cr_manifest.contains("name: test-prometheus-role"));
+    
+    // Verify ClusterRoleBinding manifest
+    let crb_manifest = &manifests[2];
+    assert!(crb_manifest.contains("kind: ClusterRoleBinding"));
+    assert!(crb_manifest.contains("name: test-prometheus-role-binding"));
+}

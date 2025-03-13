@@ -472,6 +472,13 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
         prometheus_spec.tolerations = tolerations;
     }
 
+    // Set serviceAccountName if service account is configured
+    if let Some(sa_config) = &config.service_account {
+        if sa_config.create {
+            prometheus_spec.service_account_name = Some(format!("prometheus-{}", config.name));
+        }
+    }
+
     // Create Prometheus
     let prometheus = Prometheus {
         metadata,

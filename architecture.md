@@ -58,9 +58,9 @@ Defines the data structures used in the application:
   - `ingress`: Ingress configuration for Prometheus:
     - `host`: Hostname for the Ingress resource
   - `service_account`: ServiceAccount configuration for Prometheus:
-    - `create`: Whether to create a ServiceAccount (boolean)
+    - `create`: Whether to create a ServiceAccount (boolean, defaults to true)
     - `annotations`: Optional annotations for the ServiceAccount
-    - `cluster_role`: Whether to create a ClusterRole and ClusterRoleBinding (boolean)
+    - `cluster_role`: Whether to create a ClusterRole and ClusterRoleBinding (boolean, defaults to true)
 - `DeploymentConfig`: Configuration for Kubernetes Deployments
 - `PrometheusConfig`: Configuration for Prometheus
 - `Resources`: Resource requirements

@@ -24,9 +24,25 @@ pub struct KamutConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
 pub struct ServiceAccount {
+    #[serde(default = "default_true")]
     pub create: bool,
     pub annotations: Option<HashMap<String, String>>,
+    #[serde(default)]
     pub cluster_role: Option<bool>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for ServiceAccount {
+    fn default() -> Self {
+        ServiceAccount {
+            create: true,
+            annotations: None,
+            cluster_role: Some(true),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
