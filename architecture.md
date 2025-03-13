@@ -32,6 +32,24 @@ Kamut can be used to generate a Prometheus configuration for monitoring Promethe
   - Sets up ingress for external access
   - Creates a service account with necessary permissions
 
+### Prometheus Service and Ingress
+
+When a Prometheus resource is defined in a `.kamut.yaml` file, Kamut automatically generates:
+
+1. A Prometheus custom resource with the specified configuration
+2. A Kubernetes Service that:
+   - Uses the same name as the Prometheus resource
+   - Exposes port 9090 (standard Prometheus port)
+   - Uses selector matching the Prometheus resource labels
+   - Uses ClusterIP service type for internal access
+3. If ingress configuration is provided:
+   - An Ingress resource that routes external traffic to the Prometheus service
+   - Uses the specified host for routing
+   - Configures path-based routing to the service on port 9090
+4. ServiceAccount, ClusterRole, and ClusterRoleBinding for Prometheus (if enabled)
+
+This complete setup ensures that Prometheus is properly deployed and accessible both within the cluster and, if configured, externally through the ingress.
+
 ### CLI (cli.rs)
 
 The command-line interface for the application. It defines the available commands and arguments:
@@ -50,6 +68,7 @@ Handles the processing of configuration files:
 - `process_file`: Processes a single file, generating manifests and saving them to output files
 - `generate_deployment_manifest`: Generates a Kubernetes Deployment manifest
 - `generate_prometheus_manifest`: Generates a Prometheus manifest with `serviceMonitorNamespaceSelector` set to `null`
+- `generate_prometheus_service`: Generates a Kubernetes Service manifest for Prometheus that exposes port 9090
 - `generate_prometheus_ingress`: Generates a Kubernetes Ingress manifest for Prometheus
 - `generate_prometheus_service_account`: Generates ServiceAccount, ClusterRole, and ClusterRoleBinding manifests for Prometheus
 
@@ -88,7 +107,10 @@ Defines the data structures used in the application:
      - Parses the YAML to KamutConfig
      - Validates that the `kind` field is specified (returns an error if missing)
      - Generates the appropriate manifest based on the specified kind
-     - For Prometheus resources with ingress configuration, an additional Ingress manifest is generated
+     - For Prometheus resources:
+       - Automatically generates a Service manifest to expose port 9090
+       - If ingress configuration is provided, generates an Ingress manifest
+       - Generates ServiceAccount, ClusterRole, and ClusterRoleBinding manifests (if enabled)
    - Saves all generated manifests to a file with the same base name but with a ".yaml" extension, separated by "---"
    - For example, if the input file is "a.kamut.yaml", the output will be saved to "a.yaml"
 
