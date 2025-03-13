@@ -19,6 +19,14 @@ pub struct KamutConfig {
     pub replicas: Option<i32>,
     pub retention: Option<String>,
     pub ingress: Option<Ingress>,
+    pub service_account: Option<ServiceAccount>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
+pub struct ServiceAccount {
+    pub create: bool,
+    pub annotations: Option<HashMap<String, String>>,
+    pub cluster_role: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]

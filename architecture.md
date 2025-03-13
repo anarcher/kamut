@@ -41,6 +41,7 @@ Handles the processing of configuration files:
 - `generate_deployment_manifest`: Generates a Kubernetes Deployment manifest
 - `generate_prometheus_manifest`: Generates a Prometheus manifest with `serviceMonitorNamespaceSelector` set to `null`
 - `generate_prometheus_ingress`: Generates a Kubernetes Ingress manifest for Prometheus
+- `generate_prometheus_service_account`: Generates ServiceAccount, ClusterRole, and ClusterRoleBinding manifests for Prometheus
 
 ### Models (models.rs)
 
@@ -56,6 +57,10 @@ Defines the data structures used in the application:
   - `retention`: Retention period for Prometheus (defaults to 15d)
   - `ingress`: Ingress configuration for Prometheus:
     - `host`: Hostname for the Ingress resource
+  - `service_account`: ServiceAccount configuration for Prometheus:
+    - `create`: Whether to create a ServiceAccount (boolean)
+    - `annotations`: Optional annotations for the ServiceAccount
+    - `cluster_role`: Whether to create a ClusterRole and ClusterRoleBinding (boolean)
 - `DeploymentConfig`: Configuration for Kubernetes Deployments
 - `PrometheusConfig`: Configuration for Prometheus
 - `Resources`: Resource requirements

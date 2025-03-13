@@ -70,6 +70,7 @@ fn test_generate_deployment_manifest() {
         ingress: None,
         storage: None,
         node_selector: Some(node_selector),
+        service_account: None,
     };
 
     // Generate the manifest
@@ -127,6 +128,7 @@ fn test_generate_prometheus_manifest() {
         ingress: None,
         storage: Some(storage),
         node_selector: Some(node_selector),
+        service_account: None,
     };
 
     // Generate the manifest
@@ -164,6 +166,7 @@ fn test_generate_prometheus_ingress() {
         ingress: Some(ingress_config.clone()),
         storage: None,
         node_selector: None,
+        service_account: None,
     };
 
     // Generate the ingress manifest
@@ -201,6 +204,11 @@ image: prom/prometheus:v2.7.1
 retention: 15d
 ingress:
   host: "test.example.com"
+service_account:
+  create: true
+  cluster_role: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/prometheus-role"
 "#;
 
     kamut_file.write_all(content.as_bytes()).unwrap();
@@ -229,4 +237,20 @@ ingress:
 
     assert!(output_content.contains("name: test-prometheus-ingress"));
     assert!(output_content.contains("host: test.example.com"));
+    
+    // Check for ServiceAccount, ClusterRole, and ClusterRoleBinding
+    assert!(output_content.contains("kind: ServiceAccount"));
+    assert!(output_content.contains("name: test-prometheus-sa"));
+    assert!(output_content.contains("eks.amazonaws.com/role-arn"));
+    assert!(output_content.contains("arn:aws:iam::123456789012:role/prometheus-role"));
+    
+    assert!(output_content.contains("kind: ClusterRole"));
+    assert!(output_content.contains("name: test-prometheus-role"));
+    assert!(output_content.contains("nodes/proxy"));
+    assert!(output_content.contains("/metrics"));
+    
+    assert!(output_content.contains("kind: ClusterRoleBinding"));
+    assert!(output_content.contains("name: test-prometheus-role-binding"));
+    assert!(output_content.contains("kind: ServiceAccount"));
+    assert!(output_content.contains("name: test-prometheus-sa"));
 }

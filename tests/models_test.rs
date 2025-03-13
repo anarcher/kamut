@@ -145,3 +145,35 @@ fn test_missing_required_fields() {
     let result: Result<KamutConfig, _> = serde_yaml::from_str(yaml);
     assert!(result.is_err());
 }
+
+#[test]
+fn test_service_account_deserialization() {
+    // Test ServiceAccount configuration
+    let yaml = r#"
+    name: prometheus
+    kind: Prometheus
+    image: prom/prometheus:v2.7.1
+    service_account:
+      create: true
+      cluster_role: true
+      annotations:
+        eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/prometheus-role"
+    "#;
+
+    let config: KamutConfig = serde_yaml::from_str(yaml).unwrap();
+    
+    assert_eq!(config.name, "prometheus");
+    assert_eq!(config.kind, Some("Prometheus".to_string()));
+    
+    // Check service account
+    let service_account = config.service_account.unwrap();
+    assert_eq!(service_account.create, true);
+    assert_eq!(service_account.cluster_role, Some(true));
+    
+    // Check annotations
+    let annotations = service_account.annotations.unwrap();
+    assert_eq!(
+        annotations.get("eks.amazonaws.com/role-arn").unwrap(),
+        "arn:aws:iam::123456789012:role/prometheus-role"
+    );
+}
