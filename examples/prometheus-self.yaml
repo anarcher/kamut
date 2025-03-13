@@ -2,11 +2,11 @@ apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
   labels:
-    app: example2
-  name: example2
+    app: prometheus-self
+  name: prometheus-self
   namespace: monitoring
 spec:
-  image: prom/prometheus:v2.7.1
+  image: prom/prometheus:v2.42.0
   nodeSelector:
     group: monitoring
   replicas: 1
@@ -16,15 +16,15 @@ spec:
       memory: 2Gi
     requests:
       cpu: 500m
-      memory: 400Mi
-  retention: 15d
-  serviceAccountName: prometheus-example2
+      memory: 500Mi
+  retention: 30d
+  serviceAccountName: prometheus-prometheus-self
   storage:
     volumeClaimTemplate:
       spec:
         resources:
           requests:
-            storage: 200Gi
+            storage: 100Gi
         storageClassName: gp3-prom
   tolerations:
   - effect: NoSchedule
@@ -37,17 +37,17 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   labels:
-    app: example2
-  name: example2-ingress
+    app: prometheus-self
+  name: prometheus-self-ingress
   namespace: monitoring
 spec:
   rules:
-  - host: example.com
+  - host: prometheus.example.com
     http:
       paths:
       - backend:
           service:
-            name: example2
+            name: prometheus-self
             port:
               number: 9090
         path: /
@@ -58,9 +58,11 @@ apiVersion: v1
 kind: ServiceAccount
 automountServiceAccountToken: true
 metadata:
+  annotations:
+    example.com/role: prometheus-monitoring
   labels:
-    app: example2
-  name: prometheus-example2
+    app: prometheus-self
+  name: prometheus-prometheus-self
   namespace: monitoring
 
 ---
@@ -68,8 +70,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
-    app: example2
-  name: example2-role
+    app: prometheus-self
+  name: prometheus-self-role
 rules:
 - apiGroups:
   - ''
@@ -109,13 +111,13 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
-    app: example2
-  name: example2-role-binding
+    app: prometheus-self
+  name: prometheus-self-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: example2-role
+  name: prometheus-self-role
 subjects:
 - kind: ServiceAccount
-  name: prometheus-example2
+  name: prometheus-prometheus-self
   namespace: monitoring

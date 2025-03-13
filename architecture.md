@@ -22,6 +22,16 @@ git push origin v0.1.0
 
 ## Components
 
+### Prometheus Self-Monitoring
+
+Kamut can be used to generate a Prometheus configuration for monitoring Prometheus itself:
+
+- `examples/prometheus-self.kamut.yaml`: Example configuration for Prometheus self-monitoring
+  - Uses a recent Prometheus image (v2.42.0)
+  - Configures appropriate resources and storage
+  - Sets up ingress for external access
+  - Creates a service account with necessary permissions
+
 ### CLI (cli.rs)
 
 The command-line interface for the application. It defines the available commands and arguments:
@@ -50,6 +60,7 @@ Defines the data structures used in the application:
 - `KamutConfig`: The main configuration structure with common fields:
   - `name`: Name of the resource
   - `kind`: Type of resource (Deployment or Prometheus) - **Required field**
+  - `namespace`: Kubernetes namespace for the resource
   - `image`: Container image to use
   - `env`: Environment variables
   - `resources`: Resource requirements
@@ -57,10 +68,11 @@ Defines the data structures used in the application:
   - `retention`: Retention period for Prometheus (defaults to 15d)
   - `ingress`: Ingress configuration for Prometheus:
     - `host`: Hostname for the Ingress resource
-  - `service_account`: ServiceAccount configuration for Prometheus:
+  - `service_account`: ServiceAccount configuration for Prometheus (optional, created by default):
     - `create`: Whether to create a ServiceAccount (boolean, defaults to true)
     - `annotations`: Optional annotations for the ServiceAccount
     - `cluster_role`: Whether to create a ClusterRole and ClusterRoleBinding (boolean, defaults to true)
+    - Note: If this field is not specified, a ServiceAccount, ClusterRole, and ClusterRoleBinding will still be created by default
 - `DeploymentConfig`: Configuration for Kubernetes Deployments
 - `PrometheusConfig`: Configuration for Prometheus
 - `Resources`: Resource requirements

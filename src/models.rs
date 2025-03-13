@@ -9,6 +9,7 @@ use std::collections::HashMap;
 pub struct KamutConfig {
     pub name: String,
     pub kind: Option<String>,
+    pub namespace: Option<String>,
     pub image: Option<String>,
     pub env: Option<HashMap<String, String>>,
     pub resources: Option<Resources>,

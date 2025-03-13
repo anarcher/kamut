@@ -1,0 +1,25 @@
+name: prometheus-self
+kind: Prometheus
+namespace: monitoring
+image: prom/prometheus:v2.42.0
+retention: 30d
+replicas: 1
+resources:
+  requests:
+    memory: 500Mi
+    cpu: 500m
+  limits:
+    memory: 2Gi
+    cpu: 1000m
+storage:
+  size: 100Gi
+  className: gp3-prom
+node_selector:
+  group: monitoring
+ingress:
+  host: "prometheus.example.com"
+service_account:
+  create: true
+  cluster_role: true
+  annotations:
+    example.com/role: "prometheus-monitoring"

@@ -62,6 +62,7 @@ fn test_generate_deployment_manifest() {
     let config = KamutConfig {
         name: "test-deployment".to_string(),
         kind: Some("Deployment".to_string()),
+        namespace: Some("default".to_string()),
         image: Some("test-image:v1.0.0".to_string()),
         env: Some(env),
         resources: Some(resources),
@@ -120,6 +121,7 @@ fn test_generate_prometheus_manifest() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: Some(resources),
@@ -158,6 +160,7 @@ fn test_generate_prometheus_ingress() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: None,
@@ -195,18 +198,18 @@ fn test_process_file() {
     // Write test content to the file
     let content = r#"name: test-app
 kind: Deployment
+namespace: default
 image: test-image:v1.0.0
 replicas: 2
 ---
 name: test-prometheus
 kind: Prometheus
+namespace: monitoring
 image: prom/prometheus:v2.7.1
 retention: 15d
 ingress:
   host: "test.example.com"
 service_account:
-  create: true
-  cluster_role: true
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/prometheus-role"
 "#;

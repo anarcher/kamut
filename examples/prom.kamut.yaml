@@ -1,5 +1,6 @@
 name: example2
 kind: Prometheus
+namespace: monitoring
 image: prom/prometheus:v2.7.1
 retention: 15d
 replicas: 1
@@ -17,6 +18,3 @@ node_selector:
   group: monitoring
 ingress:
   host: "example.com"
-service_account:
-  annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/prometheus-role"

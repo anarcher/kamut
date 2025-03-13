@@ -21,6 +21,7 @@ fn test_generate_prometheus_service_account() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: None,
@@ -85,6 +86,7 @@ fn test_service_account_without_cluster_role() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: None,
@@ -122,6 +124,7 @@ fn test_service_account_not_created() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: None,
@@ -146,6 +149,7 @@ fn test_no_service_account_config() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: None,
@@ -177,6 +181,7 @@ fn test_default_service_account_create() {
     let config = KamutConfig {
         name: "test-prometheus".to_string(),
         kind: Some("Prometheus".to_string()),
+        namespace: Some("monitoring".to_string()),
         image: Some("prom/prometheus:v2.7.1".to_string()),
         env: None,
         resources: None,

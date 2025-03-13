@@ -109,17 +109,13 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                         manifests.push(ingress_manifest);
                     }
                     
-                    // Generate ServiceAccount, ClusterRole, and ClusterRoleBinding if specified
-                    if let Some(sa_config) = &config.service_account {
-                        if sa_config.create {
-                            let sa_manifests = generate_prometheus_service_account(&config)?;
-                            manifests.extend(sa_manifests);
-                            println!("\nGenerated ServiceAccount for Prometheus");
-                            
-                            if sa_config.cluster_role.unwrap_or(false) {
-                                println!("Generated ClusterRole and ClusterRoleBinding for Prometheus");
-                            }
-                        }
+                    // Generate ServiceAccount, ClusterRole, and ClusterRoleBinding by default
+                    // If service_account is specified, use its configuration, otherwise use defaults
+                    let sa_manifests = generate_prometheus_service_account(&config)?;
+                    if !sa_manifests.is_empty() {
+                        manifests.extend(sa_manifests);
+                        println!("\nGenerated ServiceAccount for Prometheus");
+                        println!("Generated ClusterRole and ClusterRoleBinding for Prometheus");
                     }
 
                     processed = true;
@@ -189,6 +185,11 @@ pub fn generate_prometheus_ingress(
     // Create metadata
     let mut metadata = ObjectMeta::default();
     metadata.name = Some(format!("{}-ingress", config.name));
+    
+    // Set namespace if provided
+    if let Some(namespace) = &config.namespace {
+        metadata.namespace = Some(namespace.clone());
+    }
 
     // Create labels
     let mut labels = BTreeMap::new();
@@ -239,6 +240,11 @@ pub fn generate_deployment_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
     let mut metadata = ObjectMeta::default();
     metadata.name = Some(config.name.clone());
+    
+    // Set namespace if provided
+    if let Some(namespace) = &config.namespace {
+        metadata.namespace = Some(namespace.clone());
+    }
 
     // Create labels
     let mut labels = BTreeMap::new();
@@ -357,6 +363,11 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     // Create metadata
     let mut metadata = ObjectMeta::default();
     metadata.name = Some(config.name.clone());
+    
+    // Set namespace if provided
+    if let Some(namespace) = &config.namespace {
+        metadata.namespace = Some(namespace.clone());
+    }
 
     // Create labels
     let mut labels = BTreeMap::new();
@@ -472,11 +483,15 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
         prometheus_spec.tolerations = tolerations;
     }
 
-    // Set serviceAccountName if service account is configured
-    if let Some(sa_config) = &config.service_account {
-        if sa_config.create {
-            prometheus_spec.service_account_name = Some(format!("prometheus-{}", config.name));
-        }
+    // Set serviceAccountName
+    // If service_account is specified, check if it should be created, otherwise set by default
+    let should_create_sa = match &config.service_account {
+        Some(sa_config) => sa_config.create,
+        None => true, // Create by default if not specified
+    };
+    
+    if should_create_sa {
+        prometheus_spec.service_account_name = Some(format!("prometheus-{}", config.name));
     }
 
     // Create Prometheus
@@ -497,144 +512,161 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
 pub fn generate_prometheus_service_account(config: &KamutConfig) -> Result<Vec<String>> {
     let mut manifests = Vec::new();
     
-    // Check if service account should be created
-    if let Some(sa_config) = &config.service_account {
-        if sa_config.create {
-            // Create ServiceAccount
-            let mut sa_metadata = ObjectMeta::default();
-            sa_metadata.name = Some(format!("prometheus-{}", config.name));
-            
-            // Create labels
-            let mut labels = BTreeMap::new();
-            labels.insert("app".to_string(), config.name.clone());
-            sa_metadata.labels = Some(labels);
-            
-            // Add annotations if provided
+    // Determine if service account should be created
+    // If service_account is specified, use its configuration, otherwise create by default
+    let should_create = match &config.service_account {
+        Some(sa_config) => sa_config.create,
+        None => true, // Create by default if not specified
+    };
+    
+    if should_create {
+        // Create ServiceAccount
+        let mut sa_metadata = ObjectMeta::default();
+        sa_metadata.name = Some(format!("prometheus-{}", config.name));
+        
+        // Set namespace if provided
+        if let Some(namespace) = &config.namespace {
+            sa_metadata.namespace = Some(namespace.clone());
+        }
+        
+        // Create labels
+        let mut labels = BTreeMap::new();
+        labels.insert("app".to_string(), config.name.clone());
+        sa_metadata.labels = Some(labels);
+        
+        // Add annotations if provided
+        if let Some(sa_config) = &config.service_account {
             if let Some(annotations) = &sa_config.annotations {
                 let annotations_map: BTreeMap<String, String> = annotations.clone().into_iter().collect();
                 sa_metadata.annotations = Some(annotations_map);
             }
+        }
+        
+        // Create ServiceAccount
+        let service_account = ServiceAccount {
+            metadata: sa_metadata,
+            automount_service_account_token: Some(true),
+            ..Default::default()
+        };
+        
+        // Serialize to YAML
+        let sa_yaml = serde_yaml::to_string(&service_account)
+            .context("Failed to serialize ServiceAccount to YAML")?;
+        manifests.push(sa_yaml);
+        
+        // Determine if ClusterRole should be created
+        // If service_account is specified, use its cluster_role configuration, otherwise create by default
+        let should_create_cluster_role = match &config.service_account {
+            Some(sa_config) => sa_config.cluster_role.unwrap_or(true),
+            None => true, // Create by default if not specified
+        };
+        
+        if should_create_cluster_role {
+            // Create ClusterRole
+            let mut cr_metadata = ObjectMeta::default();
+            cr_metadata.name = Some(format!("{}-role", config.name));
             
-            // Create ServiceAccount
-            let service_account = ServiceAccount {
-                metadata: sa_metadata,
-                automount_service_account_token: Some(true),
+            // Create labels for ClusterRole
+            let mut cr_labels = BTreeMap::new();
+            cr_labels.insert("app".to_string(), config.name.clone());
+            cr_metadata.labels = Some(cr_labels);
+            
+            // Define rules for Prometheus
+            let rules = vec![
+                PolicyRule {
+                    api_groups: Some(vec!["".to_string()]),
+                    resources: Some(vec![
+                        "nodes".to_string(),
+                        "nodes/proxy".to_string(),
+                        "services".to_string(),
+                        "endpoints".to_string(),
+                        "pods".to_string(),
+                    ]),
+                    verbs: vec![
+                        "get".to_string(),
+                        "list".to_string(),
+                        "watch".to_string(),
+                    ],
+                    ..Default::default()
+                },
+                PolicyRule {
+                    api_groups: Some(vec!["extensions".to_string()]),
+                    resources: Some(vec!["ingresses".to_string()]),
+                    verbs: vec![
+                        "get".to_string(),
+                        "list".to_string(),
+                        "watch".to_string(),
+                    ],
+                    ..Default::default()
+                },
+                PolicyRule {
+                    api_groups: Some(vec!["networking.k8s.io".to_string()]),
+                    resources: Some(vec!["ingresses".to_string()]),
+                    verbs: vec![
+                        "get".to_string(),
+                        "list".to_string(),
+                        "watch".to_string(),
+                    ],
+                    ..Default::default()
+                },
+                PolicyRule {
+                    non_resource_urls: Some(vec![
+                        "/metrics".to_string(),
+                    ]),
+                    verbs: vec![
+                        "get".to_string(),
+                    ],
+                    ..Default::default()
+                },
+            ];
+            
+            // Create ClusterRole
+            let cluster_role = ClusterRole {
+                metadata: cr_metadata,
+                rules: Some(rules),
                 ..Default::default()
             };
             
             // Serialize to YAML
-            let sa_yaml = serde_yaml::to_string(&service_account)
-                .context("Failed to serialize ServiceAccount to YAML")?;
-            manifests.push(sa_yaml);
+            let cr_yaml = serde_yaml::to_string(&cluster_role)
+                .context("Failed to serialize ClusterRole to YAML")?;
+            manifests.push(cr_yaml);
             
-            // Create ClusterRole and ClusterRoleBinding if specified
-            if sa_config.cluster_role.unwrap_or(false) {
-                // Create ClusterRole
-                let mut cr_metadata = ObjectMeta::default();
-                cr_metadata.name = Some(format!("{}-role", config.name));
-                
-                // Create labels for ClusterRole
-                let mut cr_labels = BTreeMap::new();
-                cr_labels.insert("app".to_string(), config.name.clone());
-                cr_metadata.labels = Some(cr_labels);
-                
-                // Define rules for Prometheus
-                let rules = vec![
-                    PolicyRule {
-                        api_groups: Some(vec!["".to_string()]),
-                        resources: Some(vec![
-                            "nodes".to_string(),
-                            "nodes/proxy".to_string(),
-                            "services".to_string(),
-                            "endpoints".to_string(),
-                            "pods".to_string(),
-                        ]),
-                        verbs: vec![
-                            "get".to_string(),
-                            "list".to_string(),
-                            "watch".to_string(),
-                        ],
-                        ..Default::default()
-                    },
-                    PolicyRule {
-                        api_groups: Some(vec!["extensions".to_string()]),
-                        resources: Some(vec!["ingresses".to_string()]),
-                        verbs: vec![
-                            "get".to_string(),
-                            "list".to_string(),
-                            "watch".to_string(),
-                        ],
-                        ..Default::default()
-                    },
-                    PolicyRule {
-                        api_groups: Some(vec!["networking.k8s.io".to_string()]),
-                        resources: Some(vec!["ingresses".to_string()]),
-                        verbs: vec![
-                            "get".to_string(),
-                            "list".to_string(),
-                            "watch".to_string(),
-                        ],
-                        ..Default::default()
-                    },
-                    PolicyRule {
-                        non_resource_urls: Some(vec![
-                            "/metrics".to_string(),
-                        ]),
-                        verbs: vec![
-                            "get".to_string(),
-                        ],
-                        ..Default::default()
-                    },
-                ];
-                
-                // Create ClusterRole
-                let cluster_role = ClusterRole {
-                    metadata: cr_metadata,
-                    rules: Some(rules),
-                    ..Default::default()
-                };
-                
-                // Serialize to YAML
-                let cr_yaml = serde_yaml::to_string(&cluster_role)
-                    .context("Failed to serialize ClusterRole to YAML")?;
-                manifests.push(cr_yaml);
-                
-                // Create ClusterRoleBinding
-                let mut crb_metadata = ObjectMeta::default();
-                crb_metadata.name = Some(format!("{}-role-binding", config.name));
-                
-                // Create labels for ClusterRoleBinding
-                let mut crb_labels = BTreeMap::new();
-                crb_labels.insert("app".to_string(), config.name.clone());
-                crb_metadata.labels = Some(crb_labels);
-                
-                // Create RoleRef
-                let role_ref = RoleRef {
-                    api_group: "rbac.authorization.k8s.io".to_string(),
-                    kind: "ClusterRole".to_string(),
-                    name: format!("{}-role", config.name),
-                };
-                
-                // Create Subject
-                let subject = Subject {
-                    kind: "ServiceAccount".to_string(),
-                    name: format!("prometheus-{}", config.name),
-                    namespace: Some("default".to_string()), // Use the namespace where Prometheus is deployed
-                    ..Default::default()
-                };
-                
-                // Create ClusterRoleBinding
-                let cluster_role_binding = ClusterRoleBinding {
-                    metadata: crb_metadata,
-                    role_ref,
-                    subjects: Some(vec![subject]),
-                };
-                
-                // Serialize to YAML
-                let crb_yaml = serde_yaml::to_string(&cluster_role_binding)
-                    .context("Failed to serialize ClusterRoleBinding to YAML")?;
-                manifests.push(crb_yaml);
-            }
+            // Create ClusterRoleBinding
+            let mut crb_metadata = ObjectMeta::default();
+            crb_metadata.name = Some(format!("{}-role-binding", config.name));
+            
+            // Create labels for ClusterRoleBinding
+            let mut crb_labels = BTreeMap::new();
+            crb_labels.insert("app".to_string(), config.name.clone());
+            crb_metadata.labels = Some(crb_labels);
+            
+            // Create RoleRef
+            let role_ref = RoleRef {
+                api_group: "rbac.authorization.k8s.io".to_string(),
+                kind: "ClusterRole".to_string(),
+                name: format!("{}-role", config.name),
+            };
+            
+            // Create Subject
+            let subject = Subject {
+                kind: "ServiceAccount".to_string(),
+                name: format!("prometheus-{}", config.name),
+                namespace: config.namespace.clone(), // Use the namespace from config if provided
+                ..Default::default()
+            };
+            
+            // Create ClusterRoleBinding
+            let cluster_role_binding = ClusterRoleBinding {
+                metadata: crb_metadata,
+                role_ref,
+                subjects: Some(vec![subject]),
+            };
+            
+            // Serialize to YAML
+            let crb_yaml = serde_yaml::to_string(&cluster_role_binding)
+                .context("Failed to serialize ClusterRoleBinding to YAML")?;
+            manifests.push(crb_yaml);
         }
     }
     
