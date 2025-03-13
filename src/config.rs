@@ -495,7 +495,7 @@ pub fn generate_prometheus_service_account(config: &KamutConfig) -> Result<Vec<S
         if sa_config.create {
             // Create ServiceAccount
             let mut sa_metadata = ObjectMeta::default();
-            sa_metadata.name = Some(format!("{}-sa", config.name));
+            sa_metadata.name = Some(format!("prometheus-{}", config.name));
             
             // Create labels
             let mut labels = BTreeMap::new();
@@ -611,7 +611,7 @@ pub fn generate_prometheus_service_account(config: &KamutConfig) -> Result<Vec<S
                 // Create Subject
                 let subject = Subject {
                     kind: "ServiceAccount".to_string(),
-                    name: format!("{}-sa", config.name),
+                    name: format!("prometheus-{}", config.name),
                     namespace: Some("default".to_string()), // Use the namespace where Prometheus is deployed
                     ..Default::default()
                 };

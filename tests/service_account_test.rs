@@ -41,7 +41,7 @@ fn test_generate_prometheus_service_account() {
     // Verify ServiceAccount manifest
     let sa_manifest = &manifests[0];
     assert!(sa_manifest.contains("kind: ServiceAccount"));
-    assert!(sa_manifest.contains("name: test-prometheus-sa"));
+    assert!(sa_manifest.contains("name: prometheus-test-prometheus"));
     assert!(sa_manifest.contains("eks.amazonaws.com/role-arn"));
     assert!(sa_manifest.contains("arn:aws:iam::123456789012:role/prometheus-role"));
     assert!(sa_manifest.contains("automountServiceAccountToken: true"));
