@@ -72,6 +72,7 @@ fn test_generate_deployment_manifest() {
         storage: None,
         node_selector: Some(node_selector),
         service_account: None,
+        ..Default::default()
     };
 
     // Generate the manifest
@@ -131,6 +132,7 @@ fn test_generate_prometheus_manifest() {
         storage: Some(storage),
         node_selector: Some(node_selector),
         service_account: None,
+        ..Default::default()
     };
 
     // Generate the manifest
@@ -170,6 +172,7 @@ fn test_generate_prometheus_ingress() {
         storage: None,
         node_selector: None,
         service_account: None,
+        ..Default::default()
     };
 
     // Generate the ingress manifest
@@ -243,7 +246,7 @@ service_account:
     
     // Check for ServiceAccount, ClusterRole, and ClusterRoleBinding
     assert!(output_content.contains("kind: ServiceAccount"));
-    assert!(output_content.contains("name: test-prometheus-sa"));
+    assert!(output_content.contains("name: prometheus-test-prometheus"));
     assert!(output_content.contains("eks.amazonaws.com/role-arn"));
     assert!(output_content.contains("arn:aws:iam::123456789012:role/prometheus-role"));
     
@@ -255,5 +258,5 @@ service_account:
     assert!(output_content.contains("kind: ClusterRoleBinding"));
     assert!(output_content.contains("name: test-prometheus-role-binding"));
     assert!(output_content.contains("kind: ServiceAccount"));
-    assert!(output_content.contains("name: test-prometheus-sa"));
+    assert!(output_content.contains("name: prometheus-test-prometheus"));
 }

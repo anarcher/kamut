@@ -1,0 +1,10 @@
+name: hello-sc
+namespace: hello
+kind: KubeScrapeConfig
+role: pod
+scrapeInterval: 30s //default
+scrapeTimeout: 10s // default
+metricsPath: /metrics
+labels:
+  app: hello
+port: 4040

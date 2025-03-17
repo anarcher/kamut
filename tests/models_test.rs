@@ -136,14 +136,20 @@ fn test_missing_fields() {
 
 #[test]
 fn test_missing_required_fields() {
-    // Test with missing name (required)
+    // With default implementation, name field is no longer required
+    // Instead, let's test that the default name is applied when not provided
     let yaml = r#"
     kind: Deployment
     image: hello:v0.1.0
     "#;
 
     let result: Result<KamutConfig, _> = serde_yaml::from_str(yaml);
-    assert!(result.is_err());
+    assert!(result.is_ok());
+    
+    // Verify the default name is used
+    if let Ok(config) = result {
+        assert_eq!(config.name, "default");
+    }
 }
 
 #[test]

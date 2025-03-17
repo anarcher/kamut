@@ -2,11 +2,10 @@ use anyhow::{Context, Result};
 use glob::glob;
 use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
-    Container, EnvVar, PodSpec, PodTemplateSpec, ResourceRequirements, Service, ServiceAccount, 
+    Container, EnvVar, PodSpec, PodTemplateSpec, ResourceRequirements, Service, ServiceAccount,
     ServicePort, ServiceSpec,
 };
 use k8s_openapi::api::rbac::v1::{ClusterRole, ClusterRoleBinding, PolicyRule, RoleRef, Subject};
-
 use k8s_openapi::api::networking::v1::{
     HTTPIngressPath, HTTPIngressRuleValue, Ingress, IngressBackend, IngressRule,
     IngressServiceBackend, IngressSpec, ServiceBackendPort,
@@ -19,6 +18,10 @@ use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
     Prometheus, PrometheusResources, PrometheusSpec, PrometheusStorage,
     PrometheusStorageVolumeClaimTemplate, PrometheusStorageVolumeClaimTemplateSpec,
     PrometheusStorageVolumeClaimTemplateSpecResources, PrometheusTolerations,
+};
+use kube_custom_resources_rs::monitoring_coreos_com::v1alpha1::scrapeconfigs::{
+    ScrapeConfig, ScrapeConfigSpec, ScrapeConfigKubernetesSdConfigs, 
+    ScrapeConfigKubernetesSdConfigsRole, ScrapeConfigRelabelings, ScrapeConfigRelabelingsAction,
 };
 use std::collections::BTreeMap;
 use std::fs::{self, File};
@@ -108,7 +111,7 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                     let service_manifest = generate_prometheus_service(&config)?;
                     manifests.push(service_manifest);
                     println!("Generated Service for Prometheus");
-                    
+
                     // Generate Ingress if specified
                     if let Some(ingress_config) = &config.ingress {
                         let ingress_manifest =
@@ -129,6 +132,16 @@ pub fn process_file(file_path: &Path) -> Result<()> {
                     processed = true;
                 } else {
                     println!("\nError: Prometheus requires an image to be specified");
+                }
+            }
+            "KubeScrapeConfig" => {
+                if let Some(_role) = &config.role {
+                    let manifest = generate_scrape_config_manifest(&config)?;
+                    manifests.push(manifest);
+                    println!("Generated ScrapeConfig");
+                    processed = true;
+                } else {
+                    println!("\nError: KubeScrapeConfig requires a role to be specified");
                 }
             }
             kind => {
@@ -566,15 +579,126 @@ pub fn generate_prometheus_service(config: &KamutConfig) -> Result<String> {
     Ok(yaml)
 }
 
+// Function to generate ScrapeConfig manifest using kube_custom_resources_rs type
+pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
+    // Create metadata
+    let mut metadata = ObjectMeta::default();
+    metadata.name = Some(config.name.clone());
+    
+    // Set namespace if provided
+    if let Some(namespace) = &config.namespace {
+        metadata.namespace = Some(namespace.clone());
+    }
+    
+    // Create labels
+    let mut labels = BTreeMap::new();
+    labels.insert("app".to_string(), config.name.clone());
+    metadata.labels = Some(labels);
+    
+    // Create a match labels map
+    let mut match_labels = std::collections::BTreeMap::new();
+    if let Some(label_map) = &config.labels {
+        for (key, value) in label_map {
+            match_labels.insert(key.clone(), value.clone());
+        }
+    } else {
+        // Default to app: <name> if no labels provided
+        match_labels.insert("app".to_string(), config.name.clone());
+    }
+    
+    // Extract role (required parameter)
+    let role_str = config.role.as_deref().unwrap_or("pod");
+    // Convert string to enum value
+    let role = match role_str.to_lowercase().as_str() {
+        "pod" => ScrapeConfigKubernetesSdConfigsRole::Pod,
+        "endpoints" => ScrapeConfigKubernetesSdConfigsRole::Endpoints,
+        "ingress" => ScrapeConfigKubernetesSdConfigsRole::Ingress,
+        "service" => ScrapeConfigKubernetesSdConfigsRole::Service,
+        "node" => ScrapeConfigKubernetesSdConfigsRole::Node,
+        "endpointslice" => ScrapeConfigKubernetesSdConfigsRole::EndpointSlice,
+        _ => ScrapeConfigKubernetesSdConfigsRole::Pod, // Default to Pod
+    };
+    
+    // Create kubernetes SD config with minimal required fields
+    let kubernetes_sd_config = ScrapeConfigKubernetesSdConfigs {
+        role,
+        api_server: None,
+        attach_metadata: None,
+        authorization: None,
+        basic_auth: None,
+        enable_http2: None,
+        follow_redirects: None,
+        namespaces: None,
+        no_proxy: None,
+        oauth2: None,
+        proxy_connect_header: None,
+        proxy_from_environment: None,
+        proxy_url: None,
+        selectors: None,
+        tls_config: None,
+    };
+    
+    // Create relabel configs
+    let keep_relabel_config = ScrapeConfigRelabelings {
+        action: Some(ScrapeConfigRelabelingsAction::Keep),
+        source_labels: Some(vec!["__meta_kubernetes_pod_label_app".to_string()]),
+        regex: Some(config.name.clone()),
+        target_label: None,
+        modulus: None,
+        replacement: None,
+        separator: None,
+    };
+    
+    let replace_relabel_config = ScrapeConfigRelabelings {
+        action: Some(ScrapeConfigRelabelingsAction::Replace),
+        source_labels: Some(vec!["__meta_kubernetes_pod_name".to_string()]),
+        target_label: Some("pod".to_string()),
+        regex: None,
+        modulus: None,
+        replacement: None,
+        separator: None,
+    };
+    
+    // Create ScrapeConfig spec
+    let mut spec = ScrapeConfigSpec::default();
+    spec.job_name = Some(config.name.clone());
+    
+    // 주석이 포함된 문자열을 정리합니다
+    if let Some(interval) = &config.scrape_interval {
+        spec.scrape_interval = Some(interval.split_whitespace().next().unwrap_or(interval).to_string());
+    }
+    
+    if let Some(timeout) = &config.scrape_timeout {
+        spec.scrape_timeout = Some(timeout.split_whitespace().next().unwrap_or(timeout).to_string());
+    }
+    
+    spec.metrics_path = config.metrics_path.clone();
+    spec.kubernetes_sd_configs = Some(vec![kubernetes_sd_config]);
+    spec.relabelings = Some(vec![keep_relabel_config, replace_relabel_config]);
+    
+    // Create ScrapeConfig
+    let scrape_config = ScrapeConfig {
+        metadata,
+        spec,
+    };
+    
+    // Serialize to YAML
+    let yaml = serde_yaml::to_string(&scrape_config)
+        .context("Failed to serialize ScrapeConfig to YAML")?;
+    
+    Ok(yaml)
+}
+
 // Function to generate ServiceAccount, ClusterRole, and ClusterRoleBinding for Prometheus
+
 pub fn generate_prometheus_service_account(config: &KamutConfig) -> Result<Vec<String>> {
     let mut manifests = Vec::new();
 
     // Determine if service account should be created
-    // If service_account is specified, use its configuration, otherwise create by default
+    // If service_account is specified, use its configuration, otherwise do not create
     let should_create = match &config.service_account {
         Some(sa_config) => sa_config.create,
-        None => true, // Create by default if not specified
+        None => false, // Do not create if service_account is not specified
     };
 
     if should_create {

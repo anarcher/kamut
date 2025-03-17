@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  labels:
+    app: hello-sc
+  name: hello-sc
+  namespace: hello
+spec:
+  jobName: hello-sc
+  kubernetesSDConfigs:
+  - role: Pod
+  metricsPath: /metrics
+  relabelings:
+  - action: keep
+    regex: hello-sc
+    sourceLabels:
+    - __meta_kubernetes_pod_label_app
+  - action: replace
+    sourceLabels:
+    - __meta_kubernetes_pod_name
+    targetLabel: pod
+  scrapeInterval: 30s
+  scrapeTimeout: 10s

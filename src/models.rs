@@ -1,11 +1,13 @@
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::PrometheusSpec;
+// ScrapeConfig is used directly in config.rs
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct KamutConfig {
     pub name: String,
     pub kind: Option<String>,
@@ -21,6 +23,17 @@ pub struct KamutConfig {
     pub retention: Option<String>,
     pub ingress: Option<Ingress>,
     pub service_account: Option<ServiceAccount>,
+    
+    // ScrapeConfig specific fields
+    pub role: Option<String>,
+    #[serde(rename = "scrapeInterval")]
+    pub scrape_interval: Option<String>,
+    #[serde(rename = "scrapeTimeout")]
+    pub scrape_timeout: Option<String>,
+    #[serde(rename = "metricsPath")]
+    pub metrics_path: Option<String>,
+    pub labels: Option<HashMap<String, String>>,
+    pub port: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
@@ -34,6 +47,31 @@ pub struct ServiceAccount {
 
 fn default_true() -> bool {
     true
+}
+
+impl Default for KamutConfig {
+    fn default() -> Self {
+        KamutConfig {
+            name: "default".to_string(),
+            kind: None,
+            namespace: None,
+            image: None,
+            env: None,
+            resources: None,
+            storage: None,
+            node_selector: None,
+            replicas: None,
+            retention: None,
+            ingress: None,
+            service_account: None,
+            role: None,
+            scrape_interval: None,
+            scrape_timeout: None,
+            metrics_path: None,
+            labels: None,
+            port: None,
+        }
+    }
 }
 
 impl Default for ServiceAccount {
@@ -94,3 +132,5 @@ pub struct Prometheus {
     pub metadata: ObjectMeta,
     pub spec: PrometheusSpec,
 }
+
+// ScrapeConfig is now imported from kube_custom_resources_rs
