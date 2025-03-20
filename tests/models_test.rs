@@ -1,5 +1,4 @@
-use kamut::models::{Ingress, KamutConfig, Resources, ResourceSpec, Storage};
-use std::collections::HashMap;
+use kamut::models::KamutConfig;
 
 #[test]
 fn test_kamut_config_deserialization() {

@@ -6,7 +6,6 @@ use kamut::models::{Ingress, KamutConfig, Resources, ResourceSpec, Storage};
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::Write;
-use std::path::PathBuf;
 use tempfile::tempdir;
 
 #[test]
