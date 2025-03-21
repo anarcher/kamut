@@ -198,8 +198,7 @@ retention: 15d
     assert!(output_content.contains("retention: 15d"));
 
     // Count the number of documents in the output file
-    // Expected: 3 original definitions + 1 Service = 4 documents
-    // Note: ServiceAccount, ClusterRole, and ClusterRoleBinding are not created by default anymore
+    // Expected: 3 original definitions + Service, ServiceAccount, ClusterRole, and ClusterRoleBinding for Prometheus
     let doc_count = output_content.matches("---").count() + 1;
-    assert_eq!(doc_count, 4);
+    assert_eq!(doc_count, 7);
 }
