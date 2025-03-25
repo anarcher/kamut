@@ -15,7 +15,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::{
-    Prometheus, PrometheusResources, PrometheusSpec, PrometheusStorage,
+    Prometheus, PrometheusResources, PrometheusSecurityContext, PrometheusSpec, PrometheusStorage,
     PrometheusStorageVolumeClaimTemplate, PrometheusStorageVolumeClaimTemplateSpec,
     PrometheusStorageVolumeClaimTemplateSpecResources, PrometheusTolerations,
 };
@@ -449,6 +449,14 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
 
     // Set image
     prometheus_spec.image = Some(image.clone());
+
+    // Set security context
+    prometheus_spec.security_context = Some(PrometheusSecurityContext {
+        fs_group: Some(2000),
+        run_as_non_root: Some(true),
+        run_as_user: Some(1000),
+        ..Default::default()
+    });
 
     // Set serviceMonitor to null
     prometheus_spec.service_monitor_namespace_selector = None;
