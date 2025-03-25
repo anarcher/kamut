@@ -463,6 +463,18 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     prometheus_spec.service_monitor_selector = None;
     prometheus_spec.pod_monitor_namespace_selector = None;
     prometheus_spec.pod_monitor_selector = None;
+    
+    // Configure ScrapeConfig selectors to match all ScrapeConfigs in the current namespace
+    // Reference: https://prometheus-operator.dev/docs/operator/api/#prometheusnamespaceselector
+    prometheus_spec.scrape_config_namespace_selector = None; // Null selector matches the current namespace only
+    
+    // Using PrometheusScrapeConfigSelector from kube_custom_resources_rs crate
+    use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::PrometheusScrapeConfigSelector;
+    let empty_selector = PrometheusScrapeConfigSelector {
+        match_labels: Some(BTreeMap::new()),
+        match_expressions: None,
+    };
+    prometheus_spec.scrape_config_selector = Some(empty_selector); // Empty selector matches all objects
 
     // Set storage if available
     if let Some(storage_cfg) = &config.storage {

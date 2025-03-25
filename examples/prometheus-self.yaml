@@ -18,6 +18,12 @@ spec:
       cpu: 500m
       memory: 500Mi
   retention: 30d
+  scrapeConfigSelector:
+    matchLabels: {}
+  securityContext:
+    fsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
   serviceAccountName: prometheus-prometheus-self
   storage:
     volumeClaimTemplate:
@@ -31,6 +37,24 @@ spec:
     key: group
     operator: Equal
     value: monitoring
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: prometheus-self
+  name: prometheus-prometheus-self
+  namespace: monitoring
+spec:
+  ports:
+  - name: web
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    prometheus: prometheus-self
+  type: ClusterIP
 
 ---
 apiVersion: networking.k8s.io/v1
@@ -47,7 +71,7 @@ spec:
       paths:
       - backend:
           service:
-            name: prometheus-self
+            name: prometheus-prometheus-self
             port:
               number: 9090
         path: /
