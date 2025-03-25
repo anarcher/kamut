@@ -9,6 +9,9 @@ spec:
   image: prom/prometheus:v2.42.0
   nodeSelector:
     group: monitoring
+  podMetadata:
+    labels:
+      app: prometheus-self
   replicas: 1
   resources:
     limits:

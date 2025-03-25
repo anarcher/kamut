@@ -401,6 +401,16 @@ pub fn generate_prometheus_manifest(config: &KamutConfig) -> Result<String> {
     // Set replicas
     prometheus_spec.replicas = config.replicas;
 
+    // Add podMetadata with app label
+    use kube_custom_resources_rs::monitoring_coreos_com::v1::prometheuses::PrometheusPodMetadata;
+    let mut pod_labels = BTreeMap::new();
+    pod_labels.insert("app".to_string(), config.name.clone());
+    prometheus_spec.pod_metadata = Some(PrometheusPodMetadata {
+        labels: Some(pod_labels),
+        annotations: None,
+        name: None,
+    });
+
     // Set retention (default to 15d if not provided)
     prometheus_spec.retention = Some(
         config
