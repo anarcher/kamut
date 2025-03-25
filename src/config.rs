@@ -694,6 +694,17 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
         replacement: None,
         separator: None,
     };
+    
+    // Drop pods with Failed or Succeeded phase
+    let drop_terminated_pods_config = ScrapeConfigRelabelings {
+        action: Some(ScrapeConfigRelabelingsAction::Drop),
+        source_labels: Some(vec!["__meta_kubernetes_pod_phase".to_string()]),
+        separator: Some(";".to_string()),
+        regex: Some("(Failed|Succeeded)".to_string()),
+        replacement: Some("$1".to_string()),
+        target_label: None,
+        modulus: None,
+    };
 
     // Create ScrapeConfig spec
     let mut spec = ScrapeConfigSpec::default();
@@ -722,7 +733,7 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
 
     spec.metrics_path = config.metrics_path.clone();
     spec.kubernetes_sd_configs = Some(vec![kubernetes_sd_config]);
-    spec.relabelings = Some(vec![keep_relabel_config, replace_relabel_config]);
+    spec.relabelings = Some(vec![keep_relabel_config, replace_relabel_config, drop_terminated_pods_config]);
 
     // Create ScrapeConfig
     let scrape_config = ScrapeConfig { metadata, spec };
