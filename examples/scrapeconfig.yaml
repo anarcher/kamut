@@ -8,7 +8,13 @@ metadata:
 spec:
   jobName: hello-sc
   kubernetesSDConfigs:
-  - role: Pod
+  - enableHTTP2: true
+    followRedirects: true
+    namespaces:
+      names:
+      - hello
+      ownNamespace: false
+    role: Pod
   metricsPath: /metrics
   relabelings:
   - action: keep

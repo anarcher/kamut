@@ -639,16 +639,32 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
         _ => ScrapeConfigKubernetesSdConfigsRole::Pod, // Default to Pod
     };
 
-    // Create kubernetes SD config with minimal required fields
+    // Import necessary types for namespaces configuration
+    use kube_custom_resources_rs::monitoring_coreos_com::v1alpha1::scrapeconfigs::{
+        ScrapeConfigKubernetesSdConfigsNamespaces,
+    };
+
+    // Handle namespace configuration
+    let namespaces_config = if let Some(namespace) = &config.namespace {
+        // Create a namespaces configuration that targets the specified namespace
+        Some(ScrapeConfigKubernetesSdConfigsNamespaces {
+            own_namespace: Some(false),
+            names: Some(vec![namespace.clone()]),
+        })
+    } else {
+        None
+    };
+
+    // Create kubernetes SD config with namespaces support
     let kubernetes_sd_config = ScrapeConfigKubernetesSdConfigs {
         role,
         api_server: None,
         attach_metadata: None,
         authorization: None,
         basic_auth: None,
-        enable_http2: None,
-        follow_redirects: None,
-        namespaces: None,
+        enable_http2: Some(true),
+        follow_redirects: Some(true),
+        namespaces: namespaces_config,
         no_proxy: None,
         oauth2: None,
         proxy_connect_header: None,
