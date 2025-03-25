@@ -555,7 +555,7 @@ pub fn generate_prometheus_service(config: &KamutConfig) -> Result<String> {
 
     // Create selector
     let mut selector = BTreeMap::new();
-    selector.insert("app".to_string(), config.name.clone());
+    selector.insert("prometheus".to_string(), config.name.clone());
 
     // Create service port
     let service_port = ServicePort {
