@@ -4,6 +4,12 @@ Kamut is a tool for generating Kubernetes manifests from simplified configuratio
 
 ## Installation
 
+### Using Homebrew (macOS and Linux)
+
+```bash
+brew install anarcher/tap/kamut
+```
+
 ### From GitHub Releases
 
 Download the latest release for your platform from the [GitHub Releases page](https://github.com/anarcher/kamut/releases).
