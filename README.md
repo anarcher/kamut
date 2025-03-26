@@ -1,6 +1,6 @@
 # Kamut
 
-Kamut is a tool for generating Kubernetes manifests from simplified configuration files. It takes `.kamut.yaml` files as input and generates Kubernetes-compatible YAML manifests.
+Kamut is a tool for generating Kubernetes manifests from simplified configuration files. It takes `.kamut.yaml` files as input and generates Kubernetes-compatible YAML manifests. See the [kamut.yaml specification](spec.md) for detailed documentation.
 
 ## Installation
 
