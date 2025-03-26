@@ -705,6 +705,37 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
         separator: None,
     };
     
+    // Port relabel config based on container port number or name from config
+    let port_relabel_config = if let Some(port) = &config.port {
+        // Check if port is a number or name (string)
+        if port.parse::<i32>().is_ok() {
+            // If port is a number, use port_number
+            Some(ScrapeConfigRelabelings {
+                action: Some(ScrapeConfigRelabelingsAction::Keep),
+                source_labels: Some(vec!["__meta_kubernetes_pod_container_port_number".to_string()]),
+                separator: Some(";".to_string()),
+                regex: Some(port.clone()),
+                replacement: Some("$1".to_string()),
+                target_label: None,
+                modulus: None,
+            })
+        } else {
+            // If port is a string, use port_name
+            Some(ScrapeConfigRelabelings {
+                action: Some(ScrapeConfigRelabelingsAction::Keep),
+                source_labels: Some(vec!["__meta_kubernetes_pod_container_port_name".to_string()]),
+                separator: Some(";".to_string()),
+                regex: Some(port.clone()),
+                replacement: Some("$1".to_string()),
+                target_label: None,
+                modulus: None,
+            })
+        }
+    } else {
+        // If no port is specified, don't add a port relabeling config
+        None
+    };
+    
     // Drop pods with Failed or Succeeded phase
     let drop_terminated_pods_config = ScrapeConfigRelabelings {
         action: Some(ScrapeConfigRelabelingsAction::Drop),
@@ -743,7 +774,15 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
 
     spec.metrics_path = config.metrics_path.clone();
     spec.kubernetes_sd_configs = Some(vec![kubernetes_sd_config]);
-    spec.relabelings = Some(vec![keep_relabel_config, replace_relabel_config, drop_terminated_pods_config]);
+    
+    // Create a vector of relabelings, conditionally including port_relabel_config if it exists
+    let mut relabelings = vec![keep_relabel_config, replace_relabel_config];
+    if let Some(port_config) = port_relabel_config {
+        relabelings.push(port_config);
+    }
+    relabelings.push(drop_terminated_pods_config);
+    
+    spec.relabelings = Some(relabelings);
 
     // Create ScrapeConfig
     let scrape_config = ScrapeConfig { metadata, spec };

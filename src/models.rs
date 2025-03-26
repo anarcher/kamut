@@ -33,7 +33,7 @@ pub struct KamutConfig {
     #[serde(rename = "metricsPath")]
     pub metrics_path: Option<String>,
     pub labels: Option<HashMap<String, String>>,
-    pub port: Option<i32>,
+    pub port: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, JsonSchema)]
