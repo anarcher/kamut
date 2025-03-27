@@ -30,6 +30,8 @@ pub struct KamutConfig {
     pub scrape_interval: Option<String>,
     #[serde(rename = "scrapeTimeout")]
     pub scrape_timeout: Option<String>,
+    #[serde(rename = "scrapeNamespace")]
+    pub scrape_namespace: Option<String>,
     #[serde(rename = "metricsPath")]
     pub metrics_path: Option<String>,
     pub labels: Option<HashMap<String, String>>,
@@ -67,6 +69,7 @@ impl Default for KamutConfig {
             role: None,
             scrape_interval: None,
             scrape_timeout: None,
+            scrape_namespace: None,
             metrics_path: None,
             labels: None,
             port: None,

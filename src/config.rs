@@ -655,8 +655,14 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
     };
 
     // Handle namespace configuration
-    let namespaces_config = if let Some(namespace) = &config.namespace {
-        // Create a namespaces configuration that targets the specified namespace
+    let namespaces_config = if let Some(scrape_namespace) = &config.scrape_namespace {
+        // Use scrapeNamespace if provided
+        Some(ScrapeConfigKubernetesSdConfigsNamespaces {
+            own_namespace: Some(false),
+            names: Some(vec![scrape_namespace.clone()]),
+        })
+    } else if let Some(namespace) = &config.namespace {
+        // Fall back to namespace if scrapeNamespace is not provided
         Some(ScrapeConfigKubernetesSdConfigsNamespaces {
             own_namespace: Some(false),
             names: Some(vec![namespace.clone()]),
@@ -684,15 +690,36 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
         tls_config: None,
     };
 
-    // Create relabel configs
-    let keep_relabel_config = ScrapeConfigRelabelings {
-        action: Some(ScrapeConfigRelabelingsAction::Keep),
-        source_labels: Some(vec!["__meta_kubernetes_pod_label_app".to_string()]),
-        regex: Some(config.name.clone()),
-        target_label: None,
-        modulus: None,
-        replacement: None,
-        separator: None,
+    // Create relabel configs using match_labels
+    let keep_relabel_config = if let Some(label_map) = &config.labels {
+        // Create relabel configs for each label in match_labels
+        let mut relabelings = Vec::new();
+        
+        for (key, value) in label_map {
+            relabelings.push(ScrapeConfigRelabelings {
+                action: Some(ScrapeConfigRelabelingsAction::Keep),
+                source_labels: Some(vec![format!("__meta_kubernetes_pod_label_{}", key)]),
+                regex: Some(value.clone()),
+                target_label: None,
+                modulus: None,
+                replacement: None,
+                separator: None,
+            });
+        }
+        
+        // If we have multiple relabelings, use the first one and the rest will be added separately
+        relabelings.remove(0)
+    } else {
+        // Default to app: <name> if no labels provided
+        ScrapeConfigRelabelings {
+            action: Some(ScrapeConfigRelabelingsAction::Keep),
+            source_labels: Some(vec!["__meta_kubernetes_pod_label_app".to_string()]),
+            regex: Some(config.name.clone()),
+            target_label: None,
+            modulus: None,
+            replacement: None,
+            separator: None,
+        }
     };
 
     let replace_relabel_config = ScrapeConfigRelabelings {
@@ -777,6 +804,26 @@ pub fn generate_scrape_config_manifest(config: &KamutConfig) -> Result<String> {
     
     // Create a vector of relabelings, conditionally including port_relabel_config if it exists
     let mut relabelings = vec![keep_relabel_config, replace_relabel_config];
+    
+    // Add additional relabelings for each label if config.labels is provided
+    if let Some(label_map) = &config.labels {
+        let label_entries: Vec<_> = label_map.iter().collect();
+        // Skip the first entry as it's already handled in keep_relabel_config
+        if label_entries.len() > 1 {
+            for (key, value) in label_entries.iter().skip(1) {
+                relabelings.push(ScrapeConfigRelabelings {
+                    action: Some(ScrapeConfigRelabelingsAction::Keep),
+                    source_labels: Some(vec![format!("__meta_kubernetes_pod_label_{}", key)]),
+                    regex: Some(value.to_string()),
+                    target_label: None,
+                    modulus: None,
+                    replacement: None,
+                    separator: None,
+                });
+            }
+        }
+    }
+    
     if let Some(port_config) = port_relabel_config {
         relabelings.push(port_config);
     }
